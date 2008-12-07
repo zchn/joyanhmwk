@@ -1,7 +1,8 @@
-max(int a,int b)
+int max(int a,int b)
 {
 	printf(a);
-	printf(a+b);
+	printf(b);
+	return (a>b)*a+(a<b)*b;
 }
 int main(int as,int bs)
 {
@@ -22,6 +23,7 @@ int main(int as,int bs)
         b=55728;
 	struc[10].b.m = 135;
 	struc[10].c.m = 137;
+	printf(max(b,a));
 	printf(struc[10].b.m);
 	printf(struc[10].c.m);
 	printf(struc[11].mem);
