@@ -51,10 +51,11 @@ char *errtext_ptr;
 	} boolcheck_type;
 	struct {
 		int gotooffaddr;
+		int pc;
 	} ctlstat_type;
 }
 
-%token MAIN PRINTF INT VOID CHAR AUTO STATIC STRUCT RETURN IF ELSE
+%token MAIN PRINTF INT VOID CHAR AUTO STATIC STRUCT RETURN IF ELSE WHILE
 %token <num_val> NUM CHARACTER
 %token <id_val> ID 
 
@@ -66,6 +67,7 @@ char *errtext_ptr;
 %type <dec_type> function_defination_head parameter_declaration declaration_list rettype_specifier
 
 %type <notype> declaration_specifiers_sup storage_class_specifier
+%type <notype> while_statement if_then_statement
 %type <notype> type_specifier_sup function_defination argument_expression_list
 %type <notype> cpp_prog translation_unit external_declare start_part
 %type <notype> if_then_else_statement if_statement other_statement return_statement
@@ -87,7 +89,7 @@ char *errtext_ptr;
 
 %type <exexp_type> unary_expression postfix_expression primary_expression funccall_head
 
-%type <ctlstat_type> if_head insert_goto
+%type <ctlstat_type> if_head insert_goto get_pc while_head
 
 %right '='
 
@@ -266,6 +268,7 @@ struct_defination:
 		tmp->scope = current_scope;
 		tmp->extra.struc.elemlist = $4.psymhead;
 		tmp->width = sum_all_width(tmp->extra.struc.elemlist);
+		insert_symnode(tmp,main_symtab);
 		$$.psymnode = tmp;
 	}
 	| STRUCT '{' struct_declaration_list '}' {
@@ -277,6 +280,7 @@ struct_defination:
                 tmp->extra.struc.elemlist = $3.psymhead;
 		fprintf(stderr,"[DEBUG]Struct NULL get elemlist:%x\n",$3.psymhead);
 		tmp->width = sum_all_width(tmp->extra.struc.elemlist);
+		insert_symnode(tmp,main_symtab);
                 $$.psymnode = tmp;
         }
 ;
@@ -383,6 +387,26 @@ other_statement:
 	| expression_statement
 	| return_statement
 	| compound_statement
+	| while_statement
+;
+while_statement:
+	while_head statement get_pc insert_goto {
+		codeblock[$4.gotooffaddr] = $1.pc - $3.pc;
+		codeblock[$1.gotooffaddr] = current_pc - ($1.gotooffaddr-1);
+	}
+;
+while_head:
+	WHILE get_pc '(' expression ')'{
+	        OUT_LOCVAR_VALUE($4->extra.var.offset);
+                OUT_DOX(INVALID_ADDR);
+                $$.gotooffaddr = current_pc-1;
+		$$.pc = $2.pc;
+}	
+;
+get_pc:
+	{
+		$$.pc = current_pc;
+	}
 ;
 if_statement:
 	if_then_statement
@@ -391,26 +415,27 @@ if_statement:
 if_then_else_statement:
 	if_head if_then_else_statement insert_goto ELSE if_then_else_statement {
 		codeblock[$1.gotooffaddr] = $3.gotooffaddr+1-($1.gotooffaddr-1);
-		codeblock[$3.gotooffaddr] = current_pc-$3.gotooffaddr-1;
+		codeblock[$3.gotooffaddr] = current_pc-($3.gotooffaddr-1);
 	}
 	| other_statement
 ;
 if_then_statement:
 	if_head if_statement {
-		codeblock[$1.gotooffaddr] = current_pc-$1.gotooffaddr-1;
+		codeblock[$1.gotooffaddr] = current_pc-($1.gotooffaddr-1);
 	}
 	| if_head if_then_else_statement insert_goto ELSE if_then_statement{
 		codeblock[$1.gotooffaddr] = $3.gotooffaddr+1-($1.gotooffaddr-1);
-		codeblock[$3.gotooffaddr] = current_pc-$3.gotooffaddr-1;
+		codeblock[$3.gotooffaddr] = current_pc-($3.gotooffaddr-1);
 	}
 ;
 if_head:
 	IF '(' expression ')' {
-		OUT_LOCVAR_VALUE($3->extra.var.offset);
-		OUT_DOX(INVALID_ADDR);
-		$$.gotooffaddr = current_pc-1;
+	        OUT_LOCVAR_VALUE($3->extra.var.offset);
+                OUT_DOX(INVALID_ADDR);
+                $$.gotooffaddr = current_pc-1;
 	}
 ;
+
 insert_goto:	{	
 		OUT_GOTOX(INVALID_ADDR);
 		$$.gotooffaddr = current_pc-1;
@@ -471,7 +496,7 @@ logical_expression:
 		$$ = $1;
 	}
 	| logical_expression_orcheck LOGOR logical_expression {
-		codeblock[$1.gotooffaddr] = current_pc-$1.gotooffaddr-1;
+		codeblock[$1.gotooffaddr] = current_pc-($1.gotooffaddr-1);
 		$$ = alloc_loc_and_insert(INT_TYPE_POINTER,NULL);
 		OUT_LOCVAR($$->extra.var.offset);
 		OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
@@ -481,7 +506,7 @@ logical_expression:
 		OUT_POPS;
 	}
 	| logical_expression_andcheck LOGAND logical_expression {
-		codeblock[$1.gotooffaddr] = current_pc-$1.gotooffaddr-1;
+		codeblock[$1.gotooffaddr] = current_pc-($1.gotooffaddr-1);
 		$$ = alloc_loc_and_insert(INT_TYPE_POINTER,NULL);
 		OUT_LOCVAR($$->extra.var.offset);
 		OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
