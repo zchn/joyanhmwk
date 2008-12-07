@@ -24,6 +24,8 @@ auto {return AUTO;}
 static {return STATIC;}
 return {return RETURN;}
 struct {return STRUCT;}
+if {return IF;}
+else {return ELSE;}
 \|\| {return LOGOR;}
 \&\& {return LOGAND;}
 \=\= {return LOGEQU;}
