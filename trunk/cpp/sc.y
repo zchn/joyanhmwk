@@ -21,6 +21,7 @@
 #include "allocfunc.h"
 #include "op.h"
 #include "initall.h"
+#include "backpatch.h"
 
 void yyerror(const char *);
 extern int lineno;
@@ -44,6 +45,10 @@ char *errtext_ptr;
 	} exexp_type;
 	int notype;
 	int stat_type;
+	struct {
+		int gotooffaddr;
+		symtab_node_t *retvar;
+	} boolcheck_type;
 }
 
 %token MAIN PRINTF INT VOID CHAR AUTO STATIC STRUCT RETURN
@@ -73,6 +78,8 @@ char *errtext_ptr;
 %type <exp_type> shift_expression arithmetic_exp
 %type <exp_type> cast_expression unary_sup_expression
 %type <exp_type> noarray_expression
+
+%type <boolcheck_type> logical_expression_orcheck logical_expression_andcheck
 
 %type <exexp_type> unary_expression postfix_expression primary_expression funccall_head
 
@@ -109,7 +116,6 @@ start_part:{
 		OUT_MAINEND;
 	}
 ;
-
 translation_unit:
 	external_declare {}
 	| translation_unit external_declare {}
@@ -366,6 +372,7 @@ statement:
 	printf_statement
 	| expression_statement
 	| return_statement
+	| compound_statement
 ;
 return_statement:
 	RETURN expression ';' {
@@ -421,19 +428,21 @@ logical_expression:
 	binary_expression {
 		$$ = $1;
 	}
-	| logical_expression LOGOR logical_expression {
+	| logical_expression_orcheck LOGOR logical_expression {
+		codeblock[$1.gotooffaddr] = current_pc-$1.gotooffaddr-1;
 		$$ = alloc_loc_and_insert(INT_TYPE_POINTER,NULL);
 		OUT_LOCVAR($$->extra.var.offset);
-		OUT_LOCVAR_VALUE($1->extra.var.offset);
+		OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
 		OUT_LOCVAR_VALUE($3->extra.var.offset);
 		OUT_ORX;
 		OUT_ASSIGN;
 		OUT_POPS;
 	}
-	| logical_expression LOGAND logical_expression {
+	| logical_expression_andcheck LOGAND logical_expression {
+		codeblock[$1.gotooffaddr] = current_pc-$1.gotooffaddr-1;
 		$$ = alloc_loc_and_insert(INT_TYPE_POINTER,NULL);
 		OUT_LOCVAR($$->extra.var.offset);
-		OUT_LOCVAR_VALUE($1->extra.var.offset);
+		OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
 		OUT_LOCVAR_VALUE($3->extra.var.offset);
 		OUT_ANDX;
 		OUT_ASSIGN;
@@ -459,6 +468,23 @@ logical_expression:
 		OUT_POPS;
 	}
 ;
+logical_expression_orcheck:
+	logical_expression {
+		OUT_LOCVAR_VALUE($1->extra.var.offset);
+		OUT_NOTX;
+		OUT_DOX(INVALID_ADDR);
+		$$.retvar = $1;
+		$$.gotooffaddr = current_pc-1;
+	}
+;
+logical_expression_andcheck:
+	logical_expression {
+		OUT_LOCVAR_VALUE($1->extra.var.offset);
+		OUT_DOX(INVALID_ADDR);
+		$$.retvar = $1;
+		$$.gotooffaddr = current_pc-1;
+	}
+;	
 binary_expression:
 	relational_expression {
 		$$ = $1;
