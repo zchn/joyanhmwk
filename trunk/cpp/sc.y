@@ -49,9 +49,12 @@ char *errtext_ptr;
 		int gotooffaddr;
 		symtab_node_t *retvar;
 	} boolcheck_type;
+	struct {
+		int gotooffaddr;
+	} ctlstat_type;
 }
 
-%token MAIN PRINTF INT VOID CHAR AUTO STATIC STRUCT RETURN
+%token MAIN PRINTF INT VOID CHAR AUTO STATIC STRUCT RETURN IF ELSE
 %token <num_val> NUM CHARACTER
 %token <id_val> ID 
 
@@ -65,12 +68,13 @@ char *errtext_ptr;
 %type <notype> declaration_specifiers_sup storage_class_specifier
 %type <notype> type_specifier_sup function_defination argument_expression_list
 %type <notype> cpp_prog translation_unit external_declare start_part
+%type <notype> if_then_else_statement if_statement other_statement return_statement
 
 %type <declst_type> struct_declaration_list struct_declaration parameter_list
 %type <declst_type> declaration declarator_list
 
-%type <stat_type> compound_statement block_item_list statement_list
-%type <stat_type> statement expression_statement printf_statement
+%type <notype> compound_statement block_item_list statement_list
+%type <notype> statement expression_statement printf_statement
 
 %type <exp_type> expression assignment_expression
 %type <exp_type> conditional_expression logical_expression
@@ -82,6 +86,8 @@ char *errtext_ptr;
 %type <boolcheck_type> logical_expression_orcheck logical_expression_andcheck
 
 %type <exexp_type> unary_expression postfix_expression primary_expression funccall_head
+
+%type <ctlstat_type> if_head insert_goto
 
 %right '='
 
@@ -369,10 +375,46 @@ statement_list:
 	| statement_list statement
 ;
 statement:
+	other_statement
+	| if_statement
+;
+other_statement:
 	printf_statement
 	| expression_statement
 	| return_statement
 	| compound_statement
+;
+if_statement:
+	if_then_statement
+	| if_then_else_statement
+;
+if_then_else_statement:
+	if_head if_then_else_statement insert_goto ELSE if_then_else_statement {
+		codeblock[$1.gotooffaddr] = $3.gotooffaddr+1-($1.gotooffaddr-1);
+		codeblock[$3.gotooffaddr] = current_pc-$3.gotooffaddr-1;
+	}
+	| other_statement
+;
+if_then_statement:
+	if_head if_statement {
+		codeblock[$1.gotooffaddr] = current_pc-$1.gotooffaddr-1;
+	}
+	| if_head if_then_else_statement insert_goto ELSE if_then_statement{
+		codeblock[$1.gotooffaddr] = $3.gotooffaddr+1-($1.gotooffaddr-1);
+		codeblock[$3.gotooffaddr] = current_pc-$3.gotooffaddr-1;
+	}
+;
+if_head:
+	IF '(' expression ')' {
+		OUT_LOCVAR_VALUE($3->extra.var.offset);
+		OUT_DOX(INVALID_ADDR);
+		$$.gotooffaddr = current_pc-1;
+	}
+;
+insert_goto:	{	
+		OUT_GOTOX(INVALID_ADDR);
+		$$.gotooffaddr = current_pc-1;
+	}
 ;
 return_statement:
 	RETURN expression ';' {
