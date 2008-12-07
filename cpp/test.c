@@ -38,5 +38,14 @@ int main(int as,int bs)
 	printf(struc[11].a[1]);
 	printf(arr[6]);
 	max(a,b);
+	c = 1 || (a = 21);
+	printf(c);
+	printf(a);
+	c = 0 && (a = 21);
+	printf(c);
+        printf(a);
+        c = 1 && (a = 21);
+        printf(c);
+        printf(a);
 }
         
