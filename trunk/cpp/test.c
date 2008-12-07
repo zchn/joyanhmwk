@@ -1,10 +1,8 @@
 int max(int a,int b)
 {
-	if(a>b)
+	if (a>=b)
 		return a;
-	else {
-		return b;
-	}
+	return b;
 }
 int main(int as,int bs)
 {
@@ -22,6 +20,14 @@ int main(int as,int bs)
 	struc[11].a[1] = 10;
 	struc[11].mem = 102;
         a=312;
+	int i;
+	i = 1;
+	while(i < 10){
+		a = a+1;
+		i = i+1;
+		printf(a);
+	}
+	printf(11111111);
         b=55728;
 	struc[10].b.m = 135;
 	struc[10].c.m = 137;
