@@ -10,6 +10,7 @@
 #define TYPE_INT 504
 #define TYPE_CHAR 505
 #define TYPE_ALIAS 506
+#define TYPE_POINTER 507
 
 #define VAR_AUTO 601
 #define VAR_STATIC 602
@@ -43,6 +44,10 @@ typedef struct _functype_info_t{
         int offset;
 } functype_info_t;
 
+typedef struct _pointertype_info_t{
+        struct _symtab_node_t *ptype;
+} pointertype_info_t;
+
 typedef struct _symtab_node_t{
         char *name;
         int type;
@@ -53,6 +58,7 @@ typedef struct _symtab_node_t{
                 arraytype_info_t array;
                 structtype_info_t struc;
                 functype_info_t func;
+                pointertype_info_t poin;
         } extra;                
         symtab_head_t list;
 } symtab_node_t;

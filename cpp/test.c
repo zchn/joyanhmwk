@@ -1,8 +1,10 @@
 int max(int a,int b)
 {
-	if (a>=b)
+	if (a>=b){
 		return a;
-	return b;
+	}else{
+		return b;
+	}
 }
 int main(int as,int bs)
 {
@@ -40,10 +42,12 @@ int main(int as,int bs)
 	arr[6] = 12345;
 	c=a+b;
         d=a*(b+c);
-	int k;
-        printf(d);
-	k=1;
-	printf(k);
+	{
+		int k;
+        	printf(d);
+		k=1;
+		printf(k);
+	}
 	printf(struc[11].a[1]);
 	printf(arr[6]);
 	max(a,b);
@@ -56,5 +60,12 @@ int main(int as,int bs)
         c = 1 && (a = 21);
         printf(c);
         printf(a);
+	if (c) 
+		if (0)
+			printf(123);
+		else
+			printf(321);
+	else
+		printf(444);
 }
-        
+
