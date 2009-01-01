@@ -67,10 +67,10 @@ char *errtext_ptr;
 %type <dec_type> function_defination_head parameter_declaration declaration_list rettype_specifier
 
 %type <notype> declaration_specifiers_sup storage_class_specifier
-%type <notype> while_statement if_then_statement
+%type <notype> while_statement
 %type <notype> type_specifier_sup function_defination argument_expression_list
 %type <notype> cpp_prog translation_unit external_declare start_part
-%type <notype> if_then_else_statement if_statement other_statement return_statement
+%type <notype> if_statement return_statement
 
 %type <declst_type> struct_declaration_list struct_declaration parameter_list
 %type <declst_type> declaration declarator_list
@@ -379,11 +379,8 @@ statement_list:
 	| statement_list statement
 ;
 statement:
-	other_statement
-	| if_statement
-;
-other_statement:
-	printf_statement
+	if_statement
+	| printf_statement
 	| expression_statement
 	| return_statement
 	| compound_statement
@@ -409,21 +406,11 @@ get_pc:
 	}
 ;
 if_statement:
-	if_then_statement
-	| if_then_else_statement
-;
-if_then_else_statement:
-	if_head if_then_else_statement insert_goto ELSE if_then_else_statement {
+	if_head statement insert_goto ELSE statement {
 		codeblock[$1.gotooffaddr] = $3.gotooffaddr+1-($1.gotooffaddr-1);
 		codeblock[$3.gotooffaddr] = current_pc-($3.gotooffaddr-1);
 	}
-	| other_statement
-;
-if_then_statement:
-	if_head if_statement {
-		codeblock[$1.gotooffaddr] = current_pc-($1.gotooffaddr-1);
-	}
-	| if_head if_then_else_statement insert_goto ELSE if_then_statement{
+	| if_head statement insert_goto {
 		codeblock[$1.gotooffaddr] = $3.gotooffaddr+1-($1.gotooffaddr-1);
 		codeblock[$3.gotooffaddr] = current_pc-($3.gotooffaddr-1);
 	}
