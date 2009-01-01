@@ -14,9 +14,10 @@ MACRO_NUMBER ([[:digit:]]+)
 MACRO_ID ([_[:alpha:]][_[:alnum:]]*)
 
 %%
-[ \t] ;
+[ \t\r] ;
 \n {lineno++;}
 printf {return PRINTF;}
+println {return PRINTLN;}
 int {return INT;}
 void {return VOID;}
 char {return CHAR;}
