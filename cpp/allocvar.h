@@ -31,6 +31,7 @@ int alloc_loc(symtab_node_t *varnode)
 int alloc_es(symtab_node_t *varnode)
 {
         int ret = __esvar_cnt;
+        fprintf(stderr,"[DEBUG] esoffset %d allocated\n",ret);
         __esvar_cnt+=varnode->extra.var.vartype->width;
         return ret;
 }

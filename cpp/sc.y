@@ -55,18 +55,19 @@ char *errtext_ptr;
 	} ctlstat_type;
 }
 
-%token MAIN PRINTF INT VOID CHAR AUTO STATIC STRUCT RETURN IF ELSE WHILE
+%token MAIN PRINTF PRINTLN INT VOID CHAR AUTO STATIC STRUCT RETURN IF ELSE WHILE
 %token <num_val> NUM CHARACTER
 %token <id_val> ID 
 
 %type <num_val> constant
 
 %type <dec_type> declarator direct_declarator
-%type <dec_type> array_declarator array_dimdec_list
-%type <dec_type> declaration_specifiers type_specifier struct_specifier struct_defination
-%type <dec_type> function_defination_head parameter_declaration declaration_list rettype_specifier
+%type <dec_type> array_declarator array_dimdec_list declaration_specifiers_sup
+%type <dec_type> declaration_specifiers type_specifier struct_specifier
+%type <dec_type> function_defination_head parameter_declaration declaration_list
+%type <dec_type> struct_reference
 
-%type <notype> declaration_specifiers_sup storage_class_specifier
+%type <notype> storage_class_specifier
 %type <notype> while_statement
 %type <notype> type_specifier_sup function_defination argument_expression_list
 %type <notype> cpp_prog translation_unit external_declare start_part
@@ -76,7 +77,7 @@ char *errtext_ptr;
 %type <declst_type> declaration declarator_list
 
 %type <notype> compound_statement block_item_list statement_list
-%type <notype> statement expression_statement printf_statement
+%type <notype> statement expression_statement printf_statement println_statement
 
 %type <exp_type> expression assignment_expression
 %type <exp_type> conditional_expression logical_expression
@@ -129,8 +130,8 @@ translation_unit:
 	| translation_unit external_declare {}
 ;
 external_declare:
-	function_defination {}
-	| declaration {}
+	declaration {}
+	| function_defination {}
 ;
 
 declaration:
@@ -141,7 +142,8 @@ declaration:
 	}
 ;
 declarator_list:
-	declarator {
+	{ $$.psymhead = init_symtab();}
+	| declarator {
 		symtab_head_t *tmpsymhead = init_symtab();
 		symtab_node_t *ret;
 		if((ret = find_symnode_by_name($1.psymnode->name,main_symtab))
@@ -219,6 +221,7 @@ array_dimdec_list:
 declaration_specifiers_sup:
 	declaration_specifiers {
 		current_type = $1.psymnode;
+		$$ = $1;
 		fprintf(stderr,"[DEBUG] set current_type to:%x\n",$1.psymnode);
 	}
 ;
@@ -239,12 +242,39 @@ type_specifier:
 	| struct_specifier {
 		$$ = $1;
 	}
+	| CHAR {$$.psymnode=CHAR_TYPE_POINTER;}
+	| VOID {$$.psymnode=INT_TYPE_POINTER;/*FIXME*/}
 ;
 struct_specifier:
-	struct_defination {
+	STRUCT ID '{' struct_declaration_list '}' {
+		allocmemberoffset($4.psymhead);
+		symtab_node_t *tmp = get_new_symnode();
+		tmp->name = $2;
+		tmp->type = TYPE_STRUCT;
+		tmp->scope = current_scope;
+		tmp->extra.struc.elemlist = $4.psymhead;
+		tmp->width = sum_all_width(tmp->extra.struc.elemlist);
+		insert_symnode(tmp,main_symtab);
+		$$.psymnode = tmp;
+	}
+	|  STRUCT '{' struct_declaration_list '}' {
+		allocmemberoffset($3.psymhead);
+                symtab_node_t *tmp = get_new_symnode();
+                tmp->name = "czj";
+                tmp->type = TYPE_STRUCT;
+                tmp->scope = current_scope;
+                tmp->extra.struc.elemlist = $3.psymhead;
+		fprintf(stderr,"[DEBUG]Struct NULL get elemlist:%x\n",$3.psymhead);
+		tmp->width = sum_all_width(tmp->extra.struc.elemlist);
+		insert_symnode(tmp,main_symtab);
+                $$.psymnode = tmp;
+        }
+	| struct_reference {
 		$$ = $1;
 	}
-	| STRUCT ID {
+;	
+struct_reference:
+	STRUCT ID {
 		symtab_node_t *tmp = find_symnode_by_name($2,main_symtab);
 		if(tmp == NULL){
 			errtext_ptr = $2;
@@ -258,31 +288,6 @@ struct_specifier:
 			$$.psymnode = tmp;
 		}
 	}
-;
-struct_defination:
-	STRUCT ID '{' struct_declaration_list '}' {
-		allocmemberoffset($4.psymhead);
-		symtab_node_t *tmp = get_new_symnode();
-		tmp->name = $2;
-		tmp->type = TYPE_STRUCT;
-		tmp->scope = current_scope;
-		tmp->extra.struc.elemlist = $4.psymhead;
-		tmp->width = sum_all_width(tmp->extra.struc.elemlist);
-		insert_symnode(tmp,main_symtab);
-		$$.psymnode = tmp;
-	}
-	| STRUCT '{' struct_declaration_list '}' {
-		allocmemberoffset($3.psymhead);
-                symtab_node_t *tmp = get_new_symnode();
-                tmp->name = "czj";
-                tmp->type = TYPE_STRUCT;
-                tmp->scope = current_scope;
-                tmp->extra.struc.elemlist = $3.psymhead;
-		fprintf(stderr,"[DEBUG]Struct NULL get elemlist:%x\n",$3.psymhead);
-		tmp->width = sum_all_width(tmp->extra.struc.elemlist);
-		insert_symnode(tmp,main_symtab);
-                $$.psymnode = tmp;
-        }
 ;
 struct_declaration_list:
 	struct_declaration {
@@ -315,7 +320,7 @@ function_defination:
 	}
 ;
 function_defination_head:
-	rettype_specifier ID '(' parameter_list ')' {
+	declaration_specifiers_sup ID '(' parameter_list ')' {
 		init_locpool();
 		symtab_node_t *tmp = get_new_symnode();
 		tmp->name = $2;
@@ -338,13 +343,9 @@ function_defination_head:
 		$$.psymnode = tmp;
 	}
 ;
-rettype_specifier:
-	INT {$$.psymnode=INT_TYPE_POINTER;}
-	| CHAR {$$.psymnode=CHAR_TYPE_POINTER;}
-	| {$$.psymnode=INT_TYPE_POINTER;}
-;
 parameter_list:
-        parameter_declaration {
+	 {$$.psymhead=init_symtab();}
+        |parameter_declaration {
 		symtab_head_t *tmpsymhead = init_symtab();
 		insert_symnode($1.psymnode,tmpsymhead);
 		$$.psymhead = tmpsymhead;
@@ -356,6 +357,15 @@ parameter_list:
 ;
 parameter_declaration:
 	declaration_specifiers_sup declarator {
+		if($2.psymnode->extra.var.vartype->type == TYPE_ARRAY){
+			symtab_node_t *tmp = get_new_symnode();
+			tmp->name = "CZJ";
+			tmp->type = TYPE_ARRAY;
+			tmp->scope = current_scope;
+			tmp->width = INT_SIZE;
+			tmp->extra.poin.ptype = $2.psymnode->extra.var.vartype;
+			$2.psymnode->extra.var.vartype = tmp;
+		}
 		$$ = $2;
 	}
 ;
@@ -381,6 +391,7 @@ statement_list:
 statement:
 	if_statement
 	| printf_statement
+	| println_statement
 	| expression_statement
 	| return_statement
 	| compound_statement
@@ -446,9 +457,14 @@ printf_statement:
 		OUT_WRITEINTX;
 	}
 ;
+println_statement:
+	PRINTLN '(' ')' ';' {
+		OUT_NEXTLINE;
+	}
+;
 expression:
 	assignment_expression {
-		$$=$1;
+   		$$=$1;
 	}
 	| expression ',' assignment_expression {
 		$$=$3;
@@ -459,17 +475,19 @@ assignment_expression:
 		$$=$1;
 	}
 	| unary_expression '=' assignment_expression {
-		if($1.offsetvar != NULL){
-			fprintf(stderr,"[DEBUG] Assign from %d to pointer %d width %d\n",
-					$3->extra.var.offset,$1.offsetvar->extra.var.offset,$1.retvar->extra.var.vartype->width);
-			OUT_LOCVAR($1.offsetvar->extra.var.offset);
+		if($1.retvar->extra.var.vartype->type == TYPE_POINTER){
+			OUT_LOCVAR($1.retvar->extra.var.offset);
 			OUT_VALUE;
 		}else{
-			OUT_LOCVAR($1.retvar->extra.var.offset);
-			fprintf(stderr,"[DEBUG] Assign from %d to %d width %d\n",$3->extra.var.offset,$1.retvar->extra.var.offset,$1.retvar->extra.var.vartype->width);
+			if($1.retvar->scope == SCOPE_GLOBAL){
+				OUT_ESVAR($1.retvar->extra.var.offset);
+			}else{
+				OUT_LOCVAR($1.retvar->extra.var.offset);
+			}
 		}
 		OUT_LOCVAR_VALUE($3->extra.var.offset);
-		OUT_ASSIGNL($1.retvar->extra.var.vartype->width);
+		OUT_ASSIGN;
+		OUT_POPS;
 		$$=$3;
 	}
 ;
@@ -671,9 +689,9 @@ noarray_expression:
 	unary_expression {
 		$$ = alloc_loc_and_insert(INT_TYPE_POINTER,NULL);
 		OUT_LOCVAR($$->extra.var.offset);
-		if($1.offsetvar != NULL){
+		if($1.retvar->extra.var.vartype->type == TYPE_POINTER){
 			fprintf(stderr,"[DEBUG] unarray offset:%d\n",$1.offsetvar->extra.var.offset);
-			OUT_LOCVAR_VALUE($1.offsetvar->extra.var.offset);
+			OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
 			OUT_VALUE;
 		}else{
 			fprintf(stderr,"[DEBUG] unarray int offset:%d\n",$1.retvar->extra.var.offset);
@@ -697,50 +715,51 @@ postfix_expression:
 		$$ = $1;
 	}
 	| postfix_expression '[' expression ']' {
-		if($1.retvar->extra.var.vartype->type != TYPE_ARRAY){
+		if($1.retvar->extra.var.vartype->type != TYPE_POINTER
+			|| $1.retvar->extra.var.vartype->extra.poin.ptype->type != TYPE_ARRAY){
 			errtext_ptr = $1.retvar->name;
 			yyerror("Can't convert to array");
-			printf("its type is %d\n",$1.retvar->extra.var.vartype->type);
 			$$ = $1;
 		}else{
 			symtab_node_t *tmp = $1.retvar;
-			tmp->extra.var.vartype = tmp->extra.var.vartype->extra.array.elemtype;
-			OUT_LOCVAR($1.offsetvar->extra.var.offset);
-			OUT_LOCVAR_VALUE($1.offsetvar->extra.var.offset);
+			tmp->extra.var.vartype->extra.poin.ptype = 
+				tmp->extra.var.vartype->extra.poin.ptype->extra.array.elemtype;
+			OUT_LOCVAR($1.retvar->extra.var.offset);
+			OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
 			OUT_LOCVAR_VALUE($3->extra.var.offset);
-			OUT_INDEX(tmp->extra.var.vartype->width,lineno);
+			OUT_INDEX(tmp->extra.var.vartype->extra.poin.ptype->width,lineno);
 			OUT_ASSIGN;
 			OUT_POPS;
 			$$.retvar = tmp;
 			$$.offsetvar = $1.offsetvar;
 		}
-		/**/
 	}
 	| postfix_expression '.' ID {
-		if($1.retvar->extra.var.vartype->type != TYPE_STRUCT){
+		if($1.retvar->extra.var.vartype->type != TYPE_POINTER
+			|| $1.retvar->extra.var.vartype->extra.poin.ptype->type != TYPE_STRUCT){
 			errtext_ptr = $1.retvar->name;
                         yyerror("Can't convert to struct:");
                         $$ = $1;
 		}else{
 			symtab_node_t *tmp = $1.retvar;
-			tmp = find_symnode_by_name($3,tmp->extra.var.vartype->extra.struc.elemlist);
+			tmp = find_symnode_by_name($3,
+				tmp->extra.var.vartype->extra.poin.ptype->extra.struc.elemlist);
 			if(tmp == NULL){
 				errtext_ptr = $3;
 				yyerror("No such member variable:");
 				$$ = $1;
 			}else{
 				fprintf(stderr,"[DEBUG] +offset %d\n",tmp->extra.var.offset);
-                        	OUT_LOCVAR($1.offsetvar->extra.var.offset);
-                        	OUT_LOCVAR_VALUE($1.offsetvar->extra.var.offset);
+                        	OUT_LOCVAR($1.retvar->extra.var.offset);
+                        	OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
                         	OUT_FIELD(tmp->extra.var.offset);
                         	OUT_ASSIGN;
                         	OUT_POPS;
-				memcpy($1.retvar,tmp,sizeof(symtab_node_t));
+				$1.retvar->extra.var.vartype->extra.poin.ptype = tmp;
                         	$$.retvar = $1.retvar;
                         	$$.offsetvar = $1.offsetvar;
 			}
 		}
-		/*用新建一个symtab_node_t来保存加点后的变量*/
 	}
 	| funccall_head '(' argument_expression_list ')' {
 		int disp = $1.offsetvar->extra.func.offset-current_pc;
@@ -776,16 +795,25 @@ primary_expression:
 			$$.retvar = tmp;
 			$$.offsetvar = NULL;
 		}else{
-			$$.retvar = get_new_symnode();
-                	memcpy($$.retvar,tmp,sizeof(symtab_node_t));
+                	$$.retvar = tmp;
 			if($$.retvar->extra.var.vartype->type == TYPE_INT ||
 				$$.retvar->extra.var.vartype->type == TYPE_CHAR){
 				$$.offsetvar = NULL;
 			}else{
-				$$.offsetvar = alloc_loc_and_insert(INT_TYPE_POINTER,"czj");
+				symtab_node_t *poin = get_new_symnode();
+				poin->name = "CZJ";
+				poin->scope = current_scope;
+				poin->type = TYPE_POINTER;
+				poin->width = INT_SIZE;
+				poin->extra.poin.ptype = $$.retvar->extra.var.vartype;
+				$$.retvar = alloc_loc_and_insert(poin,"czj");
 				fprintf(stderr,"[DEBUG] base offset of %s : %d\n",$1,$$.retvar->extra.var.offset);
-				OUT_LOCVAR($$.offsetvar->extra.var.offset);
 				OUT_LOCVAR($$.retvar->extra.var.offset);
+				if(tmp->scope == SCOPE_GLOBAL){
+					OUT_ESVAR(tmp->extra.var.offset);
+				}else{
+					OUT_LOCVAR(tmp->extra.var.offset);
+				}
 				OUT_ASSIGN;
 				OUT_POPS;
 			}
