@@ -51,11 +51,13 @@ char *errtext_ptr;
 	} boolcheck_type;
 	struct {
 		int gotooffaddr;
+		int falsegotoaddr;
+		int truegotoaddr;
 		int pc;
 	} ctlstat_type;
 }
 
-%token MAIN PRINTF PRINTLN INT VOID CHAR AUTO STATIC STRUCT RETURN IF ELSE WHILE
+%token MAIN PRINTF PRINTLN INT VOID CHAR AUTO STATIC STRUCT RETURN IF ELSE WHILE FOR
 %token <num_val> NUM CHARACTER
 %token <id_val> ID 
 
@@ -90,7 +92,7 @@ char *errtext_ptr;
 
 %type <exexp_type> unary_expression postfix_expression primary_expression funccall_head
 
-%type <ctlstat_type> if_head insert_goto get_pc while_head
+%type <ctlstat_type> if_head insert_goto get_pc while_head for_head
 
 %right '='
 
@@ -396,6 +398,25 @@ statement:
 	| return_statement
 	| compound_statement
 	| while_statement
+	| for_statement
+;
+for_statement:
+	for_head get_pc expression ')' insert_goto get_pc statement insert_goto {
+		codeblock[$5.gotooffaddr] = $1.pc - ($5.gotooffaddr-1);
+		codeblock[$8.gotooffaddr] = $2.pc - ($8.gotooffaddr-1);
+		codeblock[$1.truegotoaddr] = $6.pc - ($1.truegotoaddr-1);
+		codeblock[$1.falsegotoaddr] = current_pc - ($1.falsegotoaddr-1);
+	}
+; 
+for_head:
+	FOR '(' expression ';' get_pc expression ';'{
+		OUT_LOCVAR_VALUE($6->extra.var.offset);
+		OUT_DOX(INVALID_ADDR);
+		$$.falsegotoaddr = current_pc - 1;
+		OUT_GOTOX(INVALID_ADDR);
+		$$.truegotoaddr = current_pc - 1;
+		$$.pc = $5.pc;
+	}
 ;
 while_statement:
 	while_head statement get_pc insert_goto {
