@@ -81,7 +81,7 @@ char *errtext_ptr;
 %type <notype> compound_statement block_item_list statement_list
 %type <notype> statement expression_statement printf_statement println_statement
 
-%type <exp_type> expression assignment_expression
+%type <exp_type> expression assignment_expression expression_or_null
 %type <exp_type> conditional_expression logical_expression
 %type <exp_type> binary_expression relational_expression
 %type <exp_type> shift_expression arithmetic_exp
@@ -401,7 +401,7 @@ statement:
 	| for_statement
 ;
 for_statement:
-	for_head get_pc expression ')' insert_goto get_pc statement insert_goto {
+	for_head get_pc expression_or_null ')' insert_goto get_pc statement insert_goto {
 		codeblock[$5.gotooffaddr] = $1.pc - ($5.gotooffaddr-1);
 		codeblock[$8.gotooffaddr] = $2.pc - ($8.gotooffaddr-1);
 		codeblock[$1.truegotoaddr] = $6.pc - ($1.truegotoaddr-1);
@@ -409,13 +409,25 @@ for_statement:
 	}
 ; 
 for_head:
-	FOR '(' expression ';' get_pc expression ';'{
-		OUT_LOCVAR_VALUE($6->extra.var.offset);
+	FOR '(' expression_or_null ';' get_pc expression_or_null ';'{
+		if($6 == NULL){
+			OUT_CONSTANT(1);
+		}else{
+			OUT_LOCVAR_VALUE($6->extra.var.offset);
+		}
 		OUT_DOX(INVALID_ADDR);
 		$$.falsegotoaddr = current_pc - 1;
 		OUT_GOTOX(INVALID_ADDR);
 		$$.truegotoaddr = current_pc - 1;
 		$$.pc = $5.pc;
+	}
+;
+expression_or_null:
+	expression {
+		$$ = $1;
+	}
+	| {
+		$$ = NULL;
 	}
 ;
 while_statement:

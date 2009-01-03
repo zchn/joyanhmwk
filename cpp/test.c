@@ -1,8 +1,11 @@
 void main()
 {
   int i, j;
-  for(i=1;i<=10;i=i+1)
+	i = 0;
+  for(;;)
 {
     printf(i);
-}  println();
+	i = i+1;
+}  
+println();
 }
