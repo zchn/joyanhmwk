@@ -115,7 +115,9 @@ cpp_prog:
 	start_part translation_unit {
 		symtab_node_t *tmp = find_symnode_by_name("main",main_symtab);
 		if(tmp == NULL){
+			errtext_ptr = "main";
 			yyerror("Cannot find main func");
+			errtext_ptr = NULL;
 		}else{
 			codeblock[1] = get_esvar_cnt();
 			codeblock[12] = tmp->extra.func.offset - 11;
@@ -147,6 +149,13 @@ declaration:
 		allocmemory($2.psymhead);
 		splice_symtab($2.psymhead,main_symtab);
 	}
+	|  declaration_specifiers_sup declarator_list error{
+		errtext_ptr = NULL;
+		yyerror("';' expected.");
+		$$ = $2;
+                allocmemory($2.psymhead);
+                splice_symtab($2.psymhead,main_symtab);
+	}
 ;
 declarator_list:
 	{ $$.psymhead = init_symtab();}
@@ -157,6 +166,7 @@ declarator_list:
 			&& ret->scope == current_scope){
 			errtext_ptr = $1.psymnode->name;
 			yyerror("Variable Redefination:");
+			errtext_ptr = NULL;
 		}
 		insert_symnode($1.psymnode,tmpsymhead);
 		$$.psymhead = tmpsymhead;
@@ -168,9 +178,25 @@ declarator_list:
 			|| find_symnode_by_name($3.psymnode->name,$1.psymhead)){
 			errtext_ptr = $3.psymnode->name;
 			yyerror("Variable Redefination:");
+			errtext_ptr = NULL;
 		}
 		insert_symnode($3.psymnode,$1.psymhead);
 		$$ = $1;
+	}
+	| declarator_list declarator {
+		errtext_ptr = $2.psymnode->name;
+		yyerror("',' needed between declarators.");
+		errtext_ptr = NULL;
+		symtab_node_t *ret;
+                if((ret = find_symnode_by_name($2.psymnode->name,main_symtab))
+                        && ret->scope == current_scope
+                        || find_symnode_by_name($2.psymnode->name,$1.psymhead)){
+                        errtext_ptr = $2.psymnode->name;
+                        yyerror("Variable Redefination:");
+			errtext_ptr = NULL;
+                }
+                insert_symnode($2.psymnode,$1.psymhead);
+                $$ = $1;
 	}
 ;
 declarator:
@@ -185,7 +211,7 @@ direct_declarator:
 		tmp->scope = current_scope;
 		tmp->type = TYPE_VAR;
 		tmp->extra.var.vartype = current_type;
-		fprintf(stderr,"[DEBUG] set ID %s type to:%x\n",$1,current_type);
+		//fprintf(stderr,"[DEBUG] set ID %s type to:%x\n",$1,current_type);
 		$$.psymnode = tmp;
 	}
 	| array_declarator {
@@ -199,7 +225,7 @@ array_declarator:
                 tmp->scope = current_scope;
                 tmp->type = TYPE_VAR;
                 tmp->extra.var.vartype = $2.psymnode;
-		fprintf(stderr,"[DEBUG] set ID %s type to:%x\n",$1,$2.psymnode);
+		//fprintf(stderr,"[DEBUG] set ID %s type to:%x\n",$1,$2.psymnode);
                 $$.psymnode = tmp;
         }
 ;
@@ -229,7 +255,7 @@ declaration_specifiers_sup:
 	declaration_specifiers {
 		current_type = $1.psymnode;
 		$$ = $1;
-		fprintf(stderr,"[DEBUG] set current_type to:%x\n",$1.psymnode);
+		//fprintf(stderr,"[DEBUG] set current_type to:%x\n",$1.psymnode);
 	}
 ;
 declaration_specifiers:
@@ -255,7 +281,13 @@ type_specifier:
 struct_specifier:
 	STRUCT ID '{' struct_declaration_list '}' {
 		allocmemberoffset($4.psymhead);
-		symtab_node_t *tmp = get_new_symnode();
+		symtab_node_t *tmp = find_symnode_by_name($2,main_symtab);
+		if(tmp != NULL){
+			errtext_ptr = $2;
+			yyerror("Struct Redefination:");
+			errtext_ptr = NULL;
+		}
+		tmp = get_new_symnode();
 		tmp->name = $2;
 		tmp->type = TYPE_STRUCT;
 		tmp->scope = current_scope;
@@ -271,7 +303,7 @@ struct_specifier:
                 tmp->type = TYPE_STRUCT;
                 tmp->scope = current_scope;
                 tmp->extra.struc.elemlist = $3.psymhead;
-		fprintf(stderr,"[DEBUG]Struct NULL get elemlist:%x\n",$3.psymhead);
+		////fprintf(stderr,"[DEBUG]Struct NULL get elemlist:%x\n",$3.psymhead);
 		tmp->width = sum_all_width(tmp->extra.struc.elemlist);
 		insert_symnode(tmp,main_symtab);
                 $$.psymnode = tmp;
@@ -286,10 +318,12 @@ struct_reference:
 		if(tmp == NULL){
 			errtext_ptr = $2;
                         yyerror("Cannot find struct named ");
+			errtext_ptr = NULL;
 			$$.psymnode = INT_TYPE_POINTER;
 		}else if(tmp->type != TYPE_STRUCT){
 			errtext_ptr = $2;
 			yyerror("The ID is not a struct: ");
+			errtext_ptr = NULL;
 			$$.psymnode = INT_TYPE_POINTER;
 		}else{
 			$$.psymnode = tmp;
@@ -328,10 +362,15 @@ function_defination:
 ;
 function_defination_head:
 	declaration_specifiers_sup ID '(' parameter_list ')' {
+		if(current_scope != SCOPE_GLOBAL){
+			errtext_ptr = $2;
+			yyerror("Cannot define func in local scope:");
+			errtext_ptr = NULL;
+		}
 		init_locpool();
 		symtab_node_t *tmp = get_new_symnode();
 		tmp->name = $2;
-		fprintf(stderr,"[DEBUG] Got func :%s\n",$2);
+		//fprintf(stderr,"[DEBUG] Got func :%s\n",$2);
 		tmp->type = TYPE_FUNC;
 		tmp->scope = SCOPE_GLOBAL;
 		tmp->width = 0;
@@ -589,7 +628,7 @@ expression_statement:
 printf_statement:
 	PRINTF '(' expression ')' ';' {
 		OUT_LOCVAR_VALUE($3->extra.var.offset);
-		fprintf(stderr,"[DEBUG] print offset:%d\n",$3->extra.var.offset);
+		//fprintf(stderr,"[DEBUG] print offset:%d\n",$3->extra.var.offset);
 		OUT_WRITEINTX;
 	}
 ;
@@ -827,11 +866,11 @@ noarray_expression:
 		if($1.retvar->extra.var.vartype->type == TYPE_POINTER
 			&& $1.retvar->extra.var.vartype->extra.poin.ptype->type != TYPE_ARRAY 
 			&& $1.retvar->extra.var.vartype->extra.poin.ptype->type != TYPE_STRUCT ){
-			fprintf(stderr,"[DEBUG] unarray offset:%d\n",$1.retvar->extra.var.offset);
+			//fprintf(stderr,"[DEBUG] unarray offset:%d\n",$1.retvar->extra.var.offset);
 			OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
 			OUT_VALUE;
 		}else{
-			fprintf(stderr,"[DEBUG] unarray int offset:%d\n",$1.retvar->extra.var.offset);
+			//fprintf(stderr,"[DEBUG] unarray int offset:%d\n",$1.retvar->extra.var.offset);
 			if($1.retvar->scope == SCOPE_GLOBAL){
 				OUT_ESVAR_VALUE($1.retvar->extra.var.offset);
 			}else{
@@ -856,6 +895,7 @@ postfix_expression:
 			|| $1.retvar->extra.var.vartype->extra.poin.ptype->type != TYPE_ARRAY){
 			errtext_ptr = $1.retvar->name;
 			yyerror("Can't convert to array");
+			errtext_ptr = NULL;
 			$$ = $1;
 		}else{
 			symtab_node_t *tmp = $1.retvar;
@@ -876,6 +916,7 @@ postfix_expression:
 			|| $1.retvar->extra.var.vartype->extra.poin.ptype->type != TYPE_STRUCT){
 			errtext_ptr = $1.retvar->name;
                         yyerror("Can't convert to struct:");
+			errtext_ptr = NULL;
                         $$ = $1;
 		}else{
 			symtab_node_t *tmp = $1.retvar;
@@ -884,9 +925,10 @@ postfix_expression:
 			if(tmp == NULL){
 				errtext_ptr = $3;
 				yyerror("No such member variable:");
+				errtext_ptr = NULL;
 				$$ = $1;
 			}else{
-				fprintf(stderr,"[DEBUG] +offset %d\n",tmp->extra.var.offset);
+				//fprintf(stderr,"[DEBUG] +offset %d\n",tmp->extra.var.offset);
                         	OUT_LOCVAR($1.retvar->extra.var.offset);
                         	OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
                         	OUT_FIELD(tmp->extra.var.offset);
@@ -924,6 +966,7 @@ funccall_head:
                 if(tmp == NULL){
                         errtext_ptr = $1;
                         yyerror("Undefined Function");
+			errtext_ptr = NULL;
 		}else{
 			OUT_FCALLBEGIN(tmp->extra.func.rettype->width);
 		}
@@ -936,6 +979,7 @@ primary_expression:
 		if(tmp == NULL){
 			errtext_ptr = $1;
 			yyerror("Undefined Variable");
+			errtext_ptr = NULL;
 			tmp=alloc_loc_and_insert(INT_TYPE_POINTER,$1);
 			$$.retvar = tmp;
 			$$.offsetvar = NULL;
@@ -968,7 +1012,7 @@ primary_expression:
 				poin->width = INT_SIZE;
 				poin->extra.poin.ptype = $$.retvar->extra.var.vartype;
 				$$.retvar = alloc_loc_and_insert(poin,"czjtmppoin");
-				fprintf(stderr,"[DEBUG] base offset of %s : %d\n",$1,$$.retvar->extra.var.offset);
+				//fprintf(stderr,"[DEBUG] base offset of %s : %d\n",$1,$$.retvar->extra.var.offset);
 				OUT_LOCVAR($$.retvar->extra.var.offset);
 				if(tmp->scope == SCOPE_GLOBAL){
 					OUT_ESVAR(tmp->extra.var.offset);
@@ -983,7 +1027,7 @@ primary_expression:
 		
 	| constant {
 		symtab_node_t *tmp=alloc_loc_and_insert(INT_TYPE_POINTER,NULL);
-		fprintf(stderr,"[DEBUG] Find constant offset %d value %d\n",tmp->extra.var.offset,$1);
+		//fprintf(stderr,"[DEBUG] Find constant offset %d value %d\n",tmp->extra.var.offset,$1);
 		OUT_LOCVAR(tmp->extra.var.offset);
 		OUT_CONSTANT($1);
 		OUT_ASSIGN;

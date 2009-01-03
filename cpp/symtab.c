@@ -111,6 +111,6 @@ int sum_all_width(symtab_head_t *list)
                         sum += tmp->extra.var.vartype->width;
                 }
         }
-        fprintf(stderr,"[DEBUG] sum_all_width: %d\n",sum);
+        //fprintf(stderr,"[DEBUG] sum_all_width: %d\n",sum);
         return sum;
 }
