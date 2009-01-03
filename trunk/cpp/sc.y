@@ -360,7 +360,7 @@ parameter_declaration:
 		if($2.psymnode->extra.var.vartype->type == TYPE_ARRAY){
 			symtab_node_t *tmp = get_new_symnode();
 			tmp->name = "CZJ";
-			tmp->type = TYPE_ARRAY;
+			tmp->type = TYPE_POINTER;
 			tmp->scope = current_scope;
 			tmp->width = INT_SIZE;
 			tmp->extra.poin.ptype = $2.psymnode->extra.var.vartype;
@@ -476,8 +476,7 @@ assignment_expression:
 	}
 	| unary_expression '=' assignment_expression {
 		if($1.retvar->extra.var.vartype->type == TYPE_POINTER){
-			OUT_LOCVAR($1.retvar->extra.var.offset);
-			OUT_VALUE;
+			OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
 		}else{
 			if($1.retvar->scope == SCOPE_GLOBAL){
 				OUT_ESVAR($1.retvar->extra.var.offset);
@@ -689,8 +688,10 @@ noarray_expression:
 	unary_expression {
 		$$ = alloc_loc_and_insert(INT_TYPE_POINTER,NULL);
 		OUT_LOCVAR($$->extra.var.offset);
-		if($1.retvar->extra.var.vartype->type == TYPE_POINTER){
-			fprintf(stderr,"[DEBUG] unarray offset:%d\n",$1.offsetvar->extra.var.offset);
+		if($1.retvar->extra.var.vartype->type == TYPE_POINTER
+			&& $1.retvar->extra.var.vartype->extra.poin.ptype->type != TYPE_ARRAY 
+			&& $1.retvar->extra.var.vartype->extra.poin.ptype->type != TYPE_STRUCT ){
+			fprintf(stderr,"[DEBUG] unarray offset:%d\n",$1.retvar->extra.var.offset);
 			OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
 			OUT_VALUE;
 		}else{
@@ -755,7 +756,7 @@ postfix_expression:
                         	OUT_FIELD(tmp->extra.var.offset);
                         	OUT_ASSIGN;
                         	OUT_POPS;
-				$1.retvar->extra.var.vartype->extra.poin.ptype = tmp;
+				$1.retvar->extra.var.vartype->extra.poin.ptype = tmp->extra.var.vartype;
                         	$$.retvar = $1.retvar;
                         	$$.offsetvar = $1.offsetvar;
 			}
@@ -796,17 +797,33 @@ primary_expression:
 			$$.offsetvar = NULL;
 		}else{
                 	$$.retvar = tmp;
+			$$.offsetvar = NULL;
 			if($$.retvar->extra.var.vartype->type == TYPE_INT ||
 				$$.retvar->extra.var.vartype->type == TYPE_CHAR){
-				$$.offsetvar = NULL;
+			}else if($$.retvar->extra.var.vartype->type == TYPE_POINTER){
+				symtab_node_t *poin = get_new_symnode();
+                                poin->name = "czjpointer";
+                                poin->scope = $$.retvar->extra.var.vartype->scope;
+                                poin->type = TYPE_POINTER;
+                                poin->width = INT_SIZE;
+                                poin->extra.poin.ptype = $$.retvar->extra.var.vartype->extra.poin.ptype;
+                                $$.retvar = alloc_loc_and_insert(poin,"czjtmppoin");
+				OUT_LOCVAR($$.retvar->extra.var.offset);
+                                if(tmp->scope == SCOPE_GLOBAL){
+                                        OUT_ESVAR_VALUE(tmp->extra.var.offset);
+                                }else{
+                                        OUT_LOCVAR_VALUE(tmp->extra.var.offset);
+				}
+                                OUT_ASSIGN;
+                                OUT_POPS;
 			}else{
 				symtab_node_t *poin = get_new_symnode();
-				poin->name = "CZJ";
+				poin->name = "czjpointer";
 				poin->scope = current_scope;
 				poin->type = TYPE_POINTER;
 				poin->width = INT_SIZE;
 				poin->extra.poin.ptype = $$.retvar->extra.var.vartype;
-				$$.retvar = alloc_loc_and_insert(poin,"czj");
+				$$.retvar = alloc_loc_and_insert(poin,"czjtmppoin");
 				fprintf(stderr,"[DEBUG] base offset of %s : %d\n",$1,$$.retvar->extra.var.offset);
 				OUT_LOCVAR($$.retvar->extra.var.offset);
 				if(tmp->scope == SCOPE_GLOBAL){

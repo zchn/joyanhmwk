@@ -1,19 +1,32 @@
-struct bb
-{
-	int a;
-	int b[10][2];
-};
-void func(int a,int b[10][2])
-{
-	b[9][1] = 1;
-	printf(a);
-	println();
-	
-}
+/* ¿ØÖÆÓï¾ä-for */
+
 void main()
 {
-	struct bb b[5];
-	b[2].b[9][1] = 10;
-	func(b[2].b[9][1],b[2].b);
-	printf(b[2].b[9][1]);
+  int i, j;
+  for(i=1;i<=10;i=i+1)
+    printf(i);
+  println();
+  for(i=1;;i=i+1)
+  {
+    printf(i);
+    if(i >= 10) break;
+  }
+  println();
+  for(;i>=-10;i=i-1)
+  {
+    if(i > 0) continue;
+    printf(i);
+  }
+  println();
+  j = 0;
+println();
+  for(;;)
+  {
+    j = j + i % 2;
+    i = i / 2;
+	printf(i);
+    if(i == 0) break;  
+  }
+  printf(j);
+  println();
 }
