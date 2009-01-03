@@ -28,6 +28,7 @@ struct {return STRUCT;}
 if {return IF;}
 else {return ELSE;}
 while {return WHILE;}
+for {return FOR;}
 \|\| {return LOGOR;}
 \&\& {return LOGAND;}
 \=\= {return LOGEQU;}
