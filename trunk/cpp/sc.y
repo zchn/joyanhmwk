@@ -61,7 +61,7 @@ char *errtext_ptr;
 }
 
 %token MAIN PRINTF PRINTLN INT VOID CHAR AUTO STATIC STRUCT RETURN IF ELSE WHILE FOR
-%token BREAK CONTINUE
+%token BREAK CONTINUE PUTCHAR GETCHAR
 %token <num_val> NUM CHARACTER
 %token <id_val> ID 
 
@@ -434,6 +434,9 @@ statement:
 	| printf_statement{
 		$$.breaklist = $$.continuelist = NULL;
 	}
+	| putchar_statement{
+		$$.breaklist = $$.continuelist = NULL;
+	}
 	| println_statement {
 		$$.breaklist = $$.continuelist = NULL;
 	}
@@ -457,6 +460,12 @@ statement:
 	}
 	| continue_statement {
 		$$ = $1;
+	}
+;
+putchar_statement:
+	PUTCHAR '(' expression ')' ';'{
+		OUT_LOCVAR_VALUE($3->extra.var.offset);
+		OUT_WRITECHAR;
 	}
 ;
 break_statement:
@@ -895,6 +904,14 @@ postfix_expression:
 		OUT_ASSIGN;
 		OUT_POPS;
 		$$.retvar=$1.retvar;
+		$$.offsetvar=NULL;
+	}
+	| GETCHAR '(' ')'{
+		$$.retvar=alloc_loc_and_insert(INT_TYPE_POINTER,NULL);
+		OUT_LOCVAR($$.retvar->extra.var.offset);
+		OUT_READCHAR;
+		OUT_ASSIGN;
+		OUT_POPS;
 		$$.offsetvar=NULL;
 	}
 ;
