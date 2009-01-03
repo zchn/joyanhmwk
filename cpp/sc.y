@@ -43,8 +43,11 @@ char *errtext_ptr;
 		symtab_node_t *offsetvar;/*若是array类型的var，此域记录其offset*/
 		symtab_node_t *retvar;
 	} exexp_type;
+	struct {
+		backlist_head_t *breaklist;
+		backlist_head_t *continuelist;
+	}  stattype;
 	int notype;
-	int stat_type;
 	struct {
 		int gotooffaddr;
 		symtab_node_t *retvar;
@@ -58,6 +61,7 @@ char *errtext_ptr;
 }
 
 %token MAIN PRINTF PRINTLN INT VOID CHAR AUTO STATIC STRUCT RETURN IF ELSE WHILE FOR
+%token BREAK CONTINUE
 %token <num_val> NUM CHARACTER
 %token <id_val> ID 
 
@@ -70,16 +74,17 @@ char *errtext_ptr;
 %type <dec_type> struct_reference
 
 %type <notype> storage_class_specifier
-%type <notype> while_statement
+%type <stattype> while_statement
 %type <notype> type_specifier_sup function_defination argument_expression_list
 %type <notype> cpp_prog translation_unit external_declare start_part
-%type <notype> if_statement return_statement
+%type <stattype> if_statement return_statement
 
 %type <declst_type> struct_declaration_list struct_declaration parameter_list
 %type <declst_type> declaration declarator_list
 
-%type <notype> compound_statement block_item_list statement_list
-%type <notype> statement expression_statement printf_statement println_statement
+%type <stattype> compound_statement block_item_list statement_list
+%type <stattype> statement expression_statement printf_statement println_statement
+%type <stattype> break_statement continue_statement
 
 %type <exp_type> expression assignment_expression expression_or_null
 %type <exp_type> conditional_expression logical_expression
@@ -374,31 +379,105 @@ parameter_declaration:
 
 compound_statement:
 	'{' block_item_list '}'{$$=$2;}
-	| '{' '}' {$$=0;}
+	| '{' '}' {
+		$$.breaklist = NULL;
+		$$.continuelist = NULL;
+	}
 ;
 declaration_list:
 	declaration {}
 	| declaration_list declaration {}
 ;
 block_item_list:
-	declaration_list {$$=0;}
+	declaration_list {
+		$$.breaklist = NULL;
+                $$.continuelist = NULL;
+	}
 	| statement_list {$$=$1;}
-	| block_item_list declaration_list {$$+=$1;}
-	| block_item_list statement_list {$$+=$1;}
+	| block_item_list declaration_list {
+		$$=$1;
+	}
+	| block_item_list statement_list {
+		if($1.breaklist == NULL)
+			$1.breaklist = $2.breaklist;
+		else
+			splice_backlist($2.breaklist,$1.breaklist);
+		$$.breaklist = $1.breaklist;
+		if($1.continuelist == NULL)
+			$1.continuelist = $2.continuelist;
+		else
+			splice_backlist($2.continuelist,$1.continuelist);
+		$$.continuelist = $1.continuelist;
+	}
 ;
 statement_list:
-	statement 
-	| statement_list statement
+	statement {
+		$$ = $1;
+	}
+	| statement_list statement{
+		if($1.breaklist == NULL)
+                        $1.breaklist = $2.breaklist;
+                else
+                        splice_backlist($2.breaklist,$1.breaklist);
+                $$.breaklist = $1.breaklist;
+                if($1.continuelist == NULL)
+                        $1.continuelist = $2.continuelist;
+                else
+                        splice_backlist($2.continuelist,$1.continuelist);
+                $$.continuelist = $1.continuelist;
+        }
 ;
 statement:
-	if_statement
-	| printf_statement
-	| println_statement
-	| expression_statement
-	| return_statement
-	| compound_statement
-	| while_statement
-	| for_statement
+	if_statement{
+		$$ = $1;
+	}
+	| printf_statement{
+		$$.breaklist = $$.continuelist = NULL;
+	}
+	| println_statement {
+		$$.breaklist = $$.continuelist = NULL;
+	}
+	| expression_statement {
+		$$.breaklist = $$.continuelist = NULL;
+	}
+	| return_statement {
+		$$.breaklist = $$.continuelist = NULL;
+	}
+	| compound_statement {
+		$$ = $1;
+	}
+	| while_statement {
+		$$.breaklist = $$.continuelist = NULL;
+	}
+	| for_statement {
+		$$.breaklist = $$.continuelist = NULL;
+	}
+	| break_statement {
+		$$ = $1;
+	}
+	| continue_statement {
+		$$ = $1;
+	}
+;
+break_statement:
+	BREAK ';' {
+		OUT_GOTOX(2);
+		$$.breaklist = init_backlist();
+		backlist_node_t *tmp = get_new_backnode();
+		tmp->offset = current_pc - 1;
+		insert_backnode(tmp,$$.breaklist);
+		$$.continuelist = NULL;
+	}
+;
+continue_statement:
+	CONTINUE ';' {
+		OUT_GOTOX(2);
+                $$.continuelist = init_backlist();
+                backlist_node_t *tmp = get_new_backnode();
+                tmp->offset = current_pc - 1;
+                insert_backnode(tmp,$$.continuelist);
+                $$.breaklist = NULL;
+	}
 ;
 for_statement:
 	for_head get_pc expression_or_null ')' insert_goto get_pc statement insert_goto {
@@ -406,6 +485,8 @@ for_statement:
 		codeblock[$8.gotooffaddr] = $2.pc - ($8.gotooffaddr-1);
 		codeblock[$1.truegotoaddr] = $6.pc - ($1.truegotoaddr-1);
 		codeblock[$1.falsegotoaddr] = current_pc - ($1.falsegotoaddr-1);
+		backpatch_dis($7.breaklist,current_pc + 1);
+		backpatch_dis($7.continuelist,$2.pc + 1);
 	}
 ; 
 for_head:
@@ -434,6 +515,8 @@ while_statement:
 	while_head statement get_pc insert_goto {
 		codeblock[$4.gotooffaddr] = $1.pc - $3.pc;
 		codeblock[$1.gotooffaddr] = current_pc - ($1.gotooffaddr-1);
+		backpatch_dis($2.breaklist,current_pc+1);
+		backpatch_dis($2.continuelist,$1.pc+1);
 	}
 ;
 while_head:
@@ -453,10 +536,21 @@ if_statement:
 	if_head statement insert_goto ELSE statement {
 		codeblock[$1.gotooffaddr] = $3.gotooffaddr+1-($1.gotooffaddr-1);
 		codeblock[$3.gotooffaddr] = current_pc-($3.gotooffaddr-1);
+		if($5.breaklist == NULL)
+                        $5.breaklist = $2.breaklist;
+                else
+                        splice_backlist($2.breaklist,$5.breaklist);
+                $$.breaklist = $5.breaklist;
+                if($5.continuelist == NULL)
+                        $5.continuelist = $2.continuelist;
+                else
+                        splice_backlist($2.continuelist,$5.continuelist);
+                $$.continuelist = $5.continuelist;
 	}
 	| if_head statement insert_goto {
 		codeblock[$1.gotooffaddr] = $3.gotooffaddr+1-($1.gotooffaddr-1);
 		codeblock[$3.gotooffaddr] = current_pc-($3.gotooffaddr-1);
+		$$ = $2;
 	}
 ;
 if_head:
@@ -480,8 +574,8 @@ return_statement:
 	}
 ;
 expression_statement:
-	expression ';' {$$=0;}
-	| ';' {$$=0;}
+	expression ';' {}
+	| ';' {}
 ;
 printf_statement:
 	PRINTF '(' expression ')' ';' {

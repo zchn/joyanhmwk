@@ -9,7 +9,7 @@ all:sc
 lex.yy.c:sc.l y.tab.c
 	$(LEX) sc.l
 
-sc:lex.yy.o y.tab.o symtab.o
+sc:lex.yy.o y.tab.o symtab.o backpatch.o
 	$(CC) -o $@ $^ -ly -ll
 
 y.tab.c:sc.y
