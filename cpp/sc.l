@@ -20,6 +20,8 @@ MACRO_ID ([_[:alpha:]][_[:alnum:]]*)
 \n {lineno++;}
 printf {return PRINTF;}
 println {return PRINTLN;}
+putchar {return PUTCHAR;}
+getchar {return GETCHAR;}
 int {return INT;}
 void {return VOID;}
 char {return CHAR;}
