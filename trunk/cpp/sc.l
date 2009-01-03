@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "symtab.h"
+extern int* codeblock;
+#include "backpatch.h"
 #include "y.tab.h"
 int lineno;
 extern symstack_head_t *main_symstack;
@@ -29,6 +31,8 @@ if {return IF;}
 else {return ELSE;}
 while {return WHILE;}
 for {return FOR;}
+break {return BREAK;}
+continue {return CONTINUE;}
 \|\| {return LOGOR;}
 \&\& {return LOGAND;}
 \=\= {return LOGEQU;}
