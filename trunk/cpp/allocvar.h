@@ -23,7 +23,7 @@ int init_espool()
 int alloc_loc(symtab_node_t *varnode)
 {
         int ret = __locvar_cnt;
-        fprintf(stderr,"[DEBUG] locoffset %d allocated\n",ret);
+        //fprintf(stderr,"[DEBUG] locoffset %d allocated\n",ret);
         __locvar_cnt+=varnode->extra.var.vartype->width;
         return ret;
 }
@@ -31,7 +31,7 @@ int alloc_loc(symtab_node_t *varnode)
 int alloc_es(symtab_node_t *varnode)
 {
         int ret = __esvar_cnt;
-        fprintf(stderr,"[DEBUG] esoffset %d allocated\n",ret);
+        //fprintf(stderr,"[DEBUG] esoffset %d allocated\n",ret);
         __esvar_cnt+=varnode->extra.var.vartype->width;
         return ret;
 }
@@ -76,8 +76,8 @@ int allocmemory(symtab_head_t *psymhead)
                                 tmp->extra.var.offset=alloc_loc(tmp);
                         }
                 }
-                fprintf(stderr,"[DEBUG] in allocmemory, alloc %s to %d\n",
-                        tmp->name,tmp->extra.var.offset);
+                //fprintf(stderr,"[DEBUG] in allocmemory, alloc %s to %d\n",
+                //       tmp->name,tmp->extra.var.offset);
         }
         return 0;
 }
