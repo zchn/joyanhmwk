@@ -17,9 +17,9 @@ int allocfuncparam(symtab_head_t *paramlst)
         list_for_each(curr,paramlst){
                 tmp = list_entry(curr,symtab_node_t,list);
                 if(tmp->type == TYPE_VAR){
-                        tmp->scope++;
                         offset -= tmp->extra.var.vartype->width;
                         tmp->extra.var.offset = offset;
+                        //fprintf(stderr,"allocfuncparam for %s",tmp->name);
                 }
         }
         return 0;

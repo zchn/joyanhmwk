@@ -14,8 +14,11 @@ extern int current_scope;
 
 MACRO_NUMBER ([[:digit:]]+)
 MACRO_ID ([_[:alpha:]][_[:alnum:]]*)
-
+%x COMMENT
 %%
+<COMMENT>.|\n { /* keep going */ }
+<COMMENT>"*/" { BEGIN(0); }
+"/*"          { BEGIN(COMMENT); }
 [ \t\r] ;
 \n {lineno++;}
 printf {return PRINTF;}
