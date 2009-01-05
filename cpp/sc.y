@@ -806,7 +806,12 @@ arithmetic_exp:
 		$$ = $1;
 	}	
 	| arithmetic_exp '+' arithmetic_exp {
-		$$ = alloc_loc_and_insert(INT_TYPE_POINTER,NULL);
+		symtab_node_t *type;
+		type = $3->extra.var.vartype;
+		if($1->extra.var.vartype->type == TYPE_POINTER){
+			type = $1->extra.var.vartype;
+		}
+		$$ = alloc_loc_and_insert(type,NULL);
 		OUT_LOCVAR($$->extra.var.offset);
 		OUT_LOCVAR_VALUE($1->extra.var.offset);
 		OUT_LOCVAR_VALUE($3->extra.var.offset);
@@ -815,7 +820,12 @@ arithmetic_exp:
 		OUT_POPS;
 	}
 	| arithmetic_exp '-' arithmetic_exp {
-		$$ = alloc_loc_and_insert(INT_TYPE_POINTER,NULL);
+		symtab_node_t *type;
+                type = $3->extra.var.vartype;
+                if($1->extra.var.vartype->type == TYPE_POINTER){
+                        type = $1->extra.var.vartype;
+                }
+		$$ = alloc_loc_and_insert(type,NULL);
 		OUT_LOCVAR($$->extra.var.offset);
 		OUT_LOCVAR_VALUE($1->extra.var.offset);
 		OUT_LOCVAR_VALUE($3->extra.var.offset);
