@@ -203,6 +203,17 @@ declarator:
 	direct_declarator {
 		$$ = $1;
 	}
+	| '*' direct_declarator {
+		symtab_node_t *tmp = get_new_symnode();
+		tmp->name = "czjpoin";
+                tmp->scope = current_scope;
+                tmp->type = TYPE_POINTER;
+		tmp->width = INT_SIZE;
+                tmp->extra.poin.ptype = $2.psymnode->extra.var.vartype;
+		$2.psymnode->extra.var.vartype = tmp;
+                //fprintf(stderr,"[DEBUG] set ID %s type to:%x\n",$1,current_type);
+                $$ = $2;
+	}
 ;
 direct_declarator:
 	ID {
@@ -216,6 +227,9 @@ direct_declarator:
 	}
 	| array_declarator {
 		$$ = $1;
+	}
+	| '(' declarator ')'{
+		$$ = $2;
 	}
 ;
 array_declarator:
@@ -380,7 +394,6 @@ function_defination_head:
 		allocfuncparam($4.psymhead);
 		push_symstack(main_symstack, main_symtab->next);
 		splice_symtab($4.psymhead,main_symtab);
-		free($4.psymhead);
 		tmp->extra.func.offset = current_pc;
 
 		OUT_FBEGIN(0,0,lineno);
@@ -407,11 +420,12 @@ parameter_declaration:
 			symtab_node_t *tmp = get_new_symnode();
 			tmp->name = "CZJ";
 			tmp->type = TYPE_POINTER;
-			tmp->scope = current_scope;
+			tmp->scope = 1;
 			tmp->width = INT_SIZE;
-			tmp->extra.poin.ptype = $2.psymnode->extra.var.vartype;
+			tmp->extra.poin.ptype = $2.psymnode->extra.var.vartype->extra.array.elemtype;
 			$2.psymnode->extra.var.vartype = tmp;
 		}
+		$2.psymnode->scope = 1;
 		$$ = $2;
 	}
 ;
@@ -573,7 +587,7 @@ while_head:
                 OUT_DOX(INVALID_ADDR);
                 $$.gotooffaddr = current_pc-1;
 		$$.pc = $2.pc;
-}	
+	}	
 ;
 get_pc:
 	{
@@ -615,8 +629,12 @@ insert_goto:	{
 	}
 ;
 return_statement:
-	RETURN expression ';' {
-		OUT_LOCVAR_VALUE($2->extra.var.offset);
+	RETURN expression_or_null ';' {
+		if($2 == NULL){
+			OUT_CONSTANT(0);
+		}else{
+			OUT_LOCVAR_VALUE($2->extra.var.offset);
+		}
 		OUT_RETURNF(current_func->extra.func.paramlength,
 				current_func->extra.func.rettype->width);
 	}
@@ -624,6 +642,11 @@ return_statement:
 expression_statement:
 	expression ';' {}
 	| ';' {}
+	| expression error ';' 
+	{
+		errtext_ptr = NULL;
+		yyerror("';' expected.");
+	}
 ;
 printf_statement:
 	PRINTF '(' expression ')' ';' {
@@ -650,19 +673,15 @@ assignment_expression:
 		$$=$1;
 	}
 	| unary_expression '=' assignment_expression {
-		if($1.retvar->extra.var.vartype->type == TYPE_POINTER){
-			OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
+		if($1.offsetvar == NULL){
+			yyerror("Cannot lvalue");
 		}else{
-			if($1.retvar->scope == SCOPE_GLOBAL){
-				OUT_ESVAR($1.retvar->extra.var.offset);
-			}else{
-				OUT_LOCVAR($1.retvar->extra.var.offset);
-			}
+			OUT_LOCVAR_VALUE($1.offsetvar->extra.var.offset);
+			OUT_LOCVAR_VALUE($3->extra.var.offset);
+			OUT_ASSIGN;
+			OUT_POPS;
+			$$=$3;
 		}
-		OUT_LOCVAR_VALUE($3->extra.var.offset);
-		OUT_ASSIGN;
-		OUT_POPS;
-		$$=$3;
 	}
 ;
 conditional_expression:
@@ -861,29 +880,44 @@ unary_sup_expression:
 ;
 noarray_expression:
 	unary_expression {
-		$$ = alloc_loc_and_insert(INT_TYPE_POINTER,NULL);
-		OUT_LOCVAR($$->extra.var.offset);
-		if($1.retvar->extra.var.vartype->type == TYPE_POINTER
-			&& $1.retvar->extra.var.vartype->extra.poin.ptype->type != TYPE_ARRAY 
-			&& $1.retvar->extra.var.vartype->extra.poin.ptype->type != TYPE_STRUCT ){
-			//fprintf(stderr,"[DEBUG] unarray offset:%d\n",$1.retvar->extra.var.offset);
-			OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
-			OUT_VALUE;
-		}else{
-			//fprintf(stderr,"[DEBUG] unarray int offset:%d\n",$1.retvar->extra.var.offset);
-			if($1.retvar->scope == SCOPE_GLOBAL){
-				OUT_ESVAR_VALUE($1.retvar->extra.var.offset);
-			}else{
-				OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
-			}
-		}
-		OUT_ASSIGN;
-		OUT_POPS;
+		$$ = $1.retvar;
 	}
 ;
 unary_expression:
 	postfix_expression {
 		$$ = $1;
+	}
+	| '*' unary_expression {
+		if($2.retvar->extra.var.vartype->type == TYPE_POINTER){
+			$$.offsetvar = alloc_loc_and_insert($2.retvar->extra.var.vartype,
+								"czjtmppointer");
+			OUT_LOCVAR($$.offsetvar->extra.var.offset);
+			if($2.retvar->scope == SCOPE_GLOBAL){
+				OUT_ESVAR_VALUE($2.retvar->extra.var.offset);
+			}else{
+				OUT_LOCVAR_VALUE($2.retvar->extra.var.offset);
+			}
+			OUT_ASSIGN;
+			OUT_POPS;
+			$$.retvar = alloc_loc_and_insert($2.retvar->extra.var.vartype->extra.poin.ptype,
+                                                                "czjtmppointer");
+			OUT_LOCVAR( $$.retvar->extra.var.offset);
+			if($2.retvar->scope == SCOPE_GLOBAL){
+                                OUT_ESVAR_VALUE($2.retvar->extra.var.offset);
+                        }else{
+                                OUT_LOCVAR_VALUE($2.retvar->extra.var.offset);
+                        }
+			OUT_VALUEL($2.retvar->extra.var.vartype->extra.poin.ptype->width);
+			OUT_ASSIGNL($2.retvar->extra.var.vartype->extra.poin.ptype->width);
+		}else{
+			errtext_ptr = $2.retvar->name;
+			yyerror("Not a pointer");
+			errtext_ptr = NULL;
+		}
+	}
+	| '&' unary_expression {
+		$$.retvar = $2.offsetvar;
+		$$.offsetvar = NULL;
 	}
 ;
 postfix_expression:
@@ -891,52 +925,70 @@ postfix_expression:
 		$$ = $1;
 	}
 	| postfix_expression '[' expression ']' {
-		if($1.retvar->extra.var.vartype->type != TYPE_POINTER
-			|| $1.retvar->extra.var.vartype->extra.poin.ptype->type != TYPE_ARRAY){
+		if($1.retvar == NULL || $1.retvar->extra.var.vartype->type != TYPE_POINTER){
 			errtext_ptr = $1.retvar->name;
 			yyerror("Can't convert to array");
 			errtext_ptr = NULL;
 			$$ = $1;
-		}else{
-			symtab_node_t *tmp = $1.retvar;
-			tmp->extra.var.vartype->extra.poin.ptype = 
-				tmp->extra.var.vartype->extra.poin.ptype->extra.array.elemtype;
-			OUT_LOCVAR($1.retvar->extra.var.offset);
+		}else if($1.retvar->extra.var.vartype->extra.poin.ptype->type == TYPE_ARRAY){
+			symtab_node_t *poin = get_new_symnode();
+			memcpy(poin,$1.retvar->extra.var.vartype,sizeof(symtab_node_t));
+			poin->extra.poin.ptype = 
+				$1.retvar->extra.var.vartype->extra.poin.ptype->extra.array.elemtype;
+			$$.retvar=alloc_loc_and_insert(poin,"czj");
+			OUT_LOCVAR($$.retvar->extra.var.offset);
 			OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
 			OUT_LOCVAR_VALUE($3->extra.var.offset);
-			OUT_INDEX(tmp->extra.var.vartype->extra.poin.ptype->width,lineno);
+			OUT_INDEX($1.retvar->extra.var.vartype->extra.poin.ptype->width,lineno);
 			OUT_ASSIGN;
 			OUT_POPS;
-			$$.retvar = tmp;
-			$$.offsetvar = $1.offsetvar;
+			$$.offsetvar = NULL;
+		}else{
+			$$.retvar=alloc_loc_and_insert($1.retvar->extra.var.vartype->extra.poin.ptype,"czj");
+			$$.offsetvar=alloc_loc_and_insert($1.retvar->extra.var.vartype,"czjpoin");
+			OUT_LOCVAR($$.retvar->extra.var.offset);
+			OUT_LOCVAR($$.offsetvar->extra.var.offset);
+			OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
+			OUT_LOCVAR_VALUE($3->extra.var.offset);
+			OUT_INDEX($1.retvar->extra.var.vartype->extra.poin.ptype->width,lineno);
+			OUT_ASSIGN;
+			OUT_VALUEL($1.retvar->extra.var.vartype->extra.poin.ptype->width);
+			OUT_ASSIGNL($1.retvar->extra.var.vartype->extra.poin.ptype->width);
 		}
 	}
 	| postfix_expression '.' ID {
-		if($1.retvar->extra.var.vartype->type != TYPE_POINTER
-			|| $1.retvar->extra.var.vartype->extra.poin.ptype->type != TYPE_STRUCT){
-			errtext_ptr = $1.retvar->name;
+		if($1.offsetvar == NULL || $1.offsetvar->extra.var.vartype->type != TYPE_POINTER
+			|| $1.offsetvar->extra.var.vartype->extra.poin.ptype->type != TYPE_STRUCT){
+			errtext_ptr = $1.offsetvar->name;
                         yyerror("Can't convert to struct:");
 			errtext_ptr = NULL;
                         $$ = $1;
 		}else{
-			symtab_node_t *tmp = $1.retvar;
+			symtab_node_t *tmp;
 			tmp = find_symnode_by_name($3,
-				tmp->extra.var.vartype->extra.poin.ptype->extra.struc.elemlist);
+				$$.offsetvar->extra.var.vartype->extra.poin.ptype->extra.struc.elemlist);
 			if(tmp == NULL){
 				errtext_ptr = $3;
 				yyerror("No such member variable:");
 				errtext_ptr = NULL;
 				$$ = $1;
 			}else{
-				//fprintf(stderr,"[DEBUG] +offset %d\n",tmp->extra.var.offset);
-                        	OUT_LOCVAR($1.retvar->extra.var.offset);
-                        	OUT_LOCVAR_VALUE($1.retvar->extra.var.offset);
+                        	OUT_LOCVAR($1.offsetvar->extra.var.offset);
+                        	OUT_LOCVAR_VALUE($1.offsetvar->extra.var.offset);
                         	OUT_FIELD(tmp->extra.var.offset);
                         	OUT_ASSIGN;
                         	OUT_POPS;
-				$1.retvar->extra.var.vartype->extra.poin.ptype = tmp->extra.var.vartype;
-                        	$$.retvar = $1.retvar;
+				$1.offsetvar->extra.var.vartype->extra.poin.ptype = tmp->extra.var.vartype;
                         	$$.offsetvar = $1.offsetvar;
+				$$.retvar = alloc_loc_and_insert(tmp->extra.var.vartype,"CZJtmpvalue");
+                                OUT_LOCVAR($$.retvar->extra.var.offset);
+                                if($$.offsetvar->scope == SCOPE_GLOBAL){
+                                        OUT_ESVAR_VALUE($$.offsetvar->extra.var.offset);
+                                }else{
+                                        OUT_LOCVAR_VALUE($$.offsetvar->extra.var.offset);
+                                }
+				OUT_VALUEL(tmp->extra.var.vartype->width);
+				OUT_ASSIGNL(tmp->extra.var.vartype->width);
 			}
 		}
 	}
@@ -978,41 +1030,47 @@ primary_expression:
 		symtab_node_t *tmp = find_symnode_by_name($1,main_symtab);
 		if(tmp == NULL){
 			errtext_ptr = $1;
-			yyerror("Undefined Variable");
+			yyerror("Undefined Variable:");
 			errtext_ptr = NULL;
 			tmp=alloc_loc_and_insert(INT_TYPE_POINTER,$1);
 			$$.retvar = tmp;
 			$$.offsetvar = NULL;
 		}else{
-                	$$.retvar = tmp;
-			$$.offsetvar = NULL;
-			if($$.retvar->extra.var.vartype->type == TYPE_INT ||
-				$$.retvar->extra.var.vartype->type == TYPE_CHAR){
-			}else if($$.retvar->extra.var.vartype->type == TYPE_POINTER){
+			if(tmp->type != TYPE_VAR){
+				errtext_ptr = $1;
+                        	yyerror("Not A Variable:");
+                        	errtext_ptr = NULL;
+				tmp=alloc_loc_and_insert(INT_TYPE_POINTER,$1);
+	                        $$.retvar = tmp;
+        	                $$.offsetvar = NULL;
+			}else if(tmp->extra.var.vartype->type == TYPE_INT ||
+				tmp->extra.var.vartype->type == TYPE_CHAR ||
+				tmp->extra.var.vartype->type == TYPE_POINTER){
 				symtab_node_t *poin = get_new_symnode();
                                 poin->name = "czjpointer";
-                                poin->scope = $$.retvar->extra.var.vartype->scope;
+                                poin->scope = current_scope;
                                 poin->type = TYPE_POINTER;
                                 poin->width = INT_SIZE;
-                                poin->extra.poin.ptype = $$.retvar->extra.var.vartype->extra.poin.ptype;
-                                $$.retvar = alloc_loc_and_insert(poin,"czjtmppoin");
-				OUT_LOCVAR($$.retvar->extra.var.offset);
-                                if(tmp->scope == SCOPE_GLOBAL){
-                                        OUT_ESVAR_VALUE(tmp->extra.var.offset);
-                                }else{
-                                        OUT_LOCVAR_VALUE(tmp->extra.var.offset);
+                                poin->extra.poin.ptype = tmp->extra.var.vartype;
+				symtab_node_t *tmp2 = alloc_loc_and_insert(poin,"CZJPOINTER");
+				OUT_LOCVAR(tmp2->extra.var.offset);
+				if(tmp->scope == SCOPE_GLOBAL){
+					OUT_ESVAR(tmp->extra.var.offset);
+				}else{
+					OUT_LOCVAR(tmp->extra.var.offset);
 				}
-                                OUT_ASSIGN;
-                                OUT_POPS;
-			}else{
+				OUT_ASSIGN;
+				OUT_POPS;
+				$$.retvar = tmp;
+                                $$.offsetvar = tmp2;
+			}else if(tmp->extra.var.vartype->type == TYPE_ARRAY){
 				symtab_node_t *poin = get_new_symnode();
 				poin->name = "czjpointer";
 				poin->scope = current_scope;
 				poin->type = TYPE_POINTER;
 				poin->width = INT_SIZE;
-				poin->extra.poin.ptype = $$.retvar->extra.var.vartype;
+				poin->extra.poin.ptype = tmp->extra.var.vartype->extra.array.elemtype;
 				$$.retvar = alloc_loc_and_insert(poin,"czjtmppoin");
-				//fprintf(stderr,"[DEBUG] base offset of %s : %d\n",$1,$$.retvar->extra.var.offset);
 				OUT_LOCVAR($$.retvar->extra.var.offset);
 				if(tmp->scope == SCOPE_GLOBAL){
 					OUT_ESVAR(tmp->extra.var.offset);
@@ -1021,7 +1079,25 @@ primary_expression:
 				}
 				OUT_ASSIGN;
 				OUT_POPS;
-			}
+				$$.offsetvar == NULL;
+			}else{
+				$$.retvar = tmp;
+				symtab_node_t *poin = get_new_symnode();
+                                poin->name = "czjpointer";
+                                poin->scope = current_scope;
+                                poin->type = TYPE_POINTER;
+                                poin->width = INT_SIZE;
+                                poin->extra.poin.ptype = tmp->extra.var.vartype;
+                                $$.offsetvar = alloc_loc_and_insert(poin,"czjstructpoin");
+                                OUT_LOCVAR($$.offsetvar->extra.var.offset);
+                                if(tmp->scope == SCOPE_GLOBAL){
+                                        OUT_ESVAR(tmp->extra.var.offset);
+                                }else{
+                                        OUT_LOCVAR(tmp->extra.var.offset);
+                                }
+                                OUT_ASSIGN;
+                                OUT_POPS;
+                        }
 		}
 	}
 		
