@@ -114,3 +114,34 @@ int sum_all_width(symtab_head_t *list)
         //fprintf(stderr,"[DEBUG] sum_all_width: %d\n",sum);
         return sum;
 }
+
+int process_array_type(symtab_node_t * node)
+{
+        switch(node->type)
+        {
+        case TYPE_INT:
+                return 0;
+                break;
+        case TYPE_VAR:
+                process_array_type(node->extra.var.vartype);
+                break;
+        case TYPE_ARRAY:
+                process_array_type(node->extra.array.elemtype);
+                node->width = node->extra.array.count*node->extra.array.elemtype->width;
+                break;
+        case TYPE_STRUCT:
+                return 0;
+                break;
+        case TYPE_CHAR:                
+                return 0;
+                break;
+        case TYPE_POINTER:
+                process_array_type(node->extra.poin.ptype);
+                break;
+        default:
+                fprintf(stderr,"DEBUGERR!It shouldn't go here:symtab.c line142 %d\n",node->type);
+                return -1;
+                break;
+        }
+        return 0;
+}

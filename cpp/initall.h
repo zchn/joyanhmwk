@@ -12,6 +12,8 @@
 int codeblock[CB_LEN];/* 最终生成的二进制cpmachine代码 */
 int current_pc;/* 当前翻译到的pc指针 */
 symtab_node_t *current_type;/* 在解析delclaration类语句时，存放delarator_list前的那部分类型说明 */
+symtab_node_t *current_symnode;
+symtab_node_t *my_type;
 symtab_node_t *current_func;
 int current_scope;
 symtab_head_t *main_symtab;/* 主（当前）符号表  */
