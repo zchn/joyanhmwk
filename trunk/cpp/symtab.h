@@ -72,6 +72,7 @@ int split_symtab(symtab_head_t *head1,symtab_head_t *head2);
 int splice_symtab(const symtab_head_t *head1,symtab_head_t *head2);
 symtab_node_t * find_symnode_by_name(const char *name,const symtab_head_t *head);
 int destroy_symtab(symtab_head_t * head);
+int process_array_type(symtab_node_t * node);
 
 symstack_head_t * init_symstack();
 int push_symstack(symstack_head_t *S, symtab_head_t *elem);

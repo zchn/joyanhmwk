@@ -68,7 +68,7 @@ char *errtext_ptr;
 %type <num_val> constant
 
 %type <dec_type> declarator direct_declarator
-%type <dec_type> array_declarator array_dimdec_list declaration_specifiers_sup
+%type <dec_type> declaration_specifiers_sup
 %type <dec_type> declaration_specifiers type_specifier struct_specifier
 %type <dec_type> function_defination_head parameter_declaration declaration_list
 %type <dec_type> struct_reference
@@ -161,41 +161,63 @@ declarator_list:
 	{ $$.psymhead = init_symtab();}
 	| declarator {
 		symtab_head_t *tmpsymhead = init_symtab();
-		symtab_node_t *ret;
-		if((ret = find_symnode_by_name($1.psymnode->name,main_symtab))
-			&& ret->scope == current_scope){
-			errtext_ptr = $1.psymnode->name;
-			yyerror("Variable Redefination:");
-			errtext_ptr = NULL;
-		}
-		insert_symnode($1.psymnode,tmpsymhead);
+		symtab_node_t *tmp=current_type;
+		switch($1.psymnode->type){
+                        case TYPE_VAR:
+                                $1.psymnode->extra.var.vartype = tmp;
+                                break;
+                        case TYPE_POINTER:
+                                $1.psymnode->extra.poin.ptype = tmp;
+                                break;
+                        case TYPE_ARRAY:
+                                $1.psymnode->extra.array.elemtype = tmp;
+                                break;
+                        default:
+                                fprintf(stderr,"DEBUGERR!!:It shouldn't goes here!line224");
+                }
+		process_array_type(current_symnode);
+		insert_symnode(current_symnode,tmpsymhead);
 		$$.psymhead = tmpsymhead;
 	}
 	| declarator_list ',' declarator {
-		symtab_node_t *ret;
-		if((ret = find_symnode_by_name($3.psymnode->name,main_symtab))
-			&& ret->scope == current_scope
-			|| find_symnode_by_name($3.psymnode->name,$1.psymhead)){
-			errtext_ptr = $3.psymnode->name;
-			yyerror("Variable Redefination:");
-			errtext_ptr = NULL;
-		}
-		insert_symnode($3.psymnode,$1.psymhead);
+		symtab_node_t *tmp=current_type;
+                switch($3.psymnode->type){
+                        case TYPE_VAR:
+                                $3.psymnode->extra.var.vartype = tmp;
+                                break;
+                        case TYPE_POINTER:
+                                $3.psymnode->extra.poin.ptype = tmp;
+                                break;
+                        case TYPE_ARRAY:
+                                $3.psymnode->extra.array.elemtype = tmp;
+                                break;
+                        default:
+                                fprintf(stderr,"DEBUGERR!!:It shouldn't goes here!line224");
+                }
+		process_array_type(current_symnode);
+		insert_symnode(current_symnode,$1.psymhead);
 		$$ = $1;
 	}
 	| declarator_list declarator {
 		errtext_ptr = $2.psymnode->name;
 		yyerror("',' needed between declarators.");
 		errtext_ptr = NULL;
-		symtab_node_t *ret;
-                if((ret = find_symnode_by_name($2.psymnode->name,main_symtab))
-                        && ret->scope == current_scope
-                        || find_symnode_by_name($2.psymnode->name,$1.psymhead)){
-                        errtext_ptr = $2.psymnode->name;
-                        yyerror("Variable Redefination:");
-			errtext_ptr = NULL;
+                symtab_node_t *tmp=current_type;
+                switch($2.psymnode->type){
+                        case TYPE_VAR:
+                                $2.psymnode->extra.var.vartype = tmp;
+                                break;
+                        case TYPE_POINTER:
+                                $2.psymnode->extra.poin.ptype = tmp;
+                                break;
+                        case TYPE_ARRAY:
+                                $2.psymnode->extra.array.elemtype = tmp;
+                                break;
+                        default:
+                                fprintf(stderr,"DEBUGERR!!:It shouldn't goes here!line224");
                 }
-                insert_symnode($2.psymnode,$1.psymhead);
+		process_array_type(current_symnode);
+                insert_symnode(current_symnode,$1.psymhead);
                 $$ = $1;
 	}
 ;
@@ -203,16 +225,28 @@ declarator:
 	direct_declarator {
 		$$ = $1;
 	}
-	| '*' direct_declarator {
+	| '*' declarator {
 		symtab_node_t *tmp = get_new_symnode();
 		tmp->name = "czjpoin";
                 tmp->scope = current_scope;
                 tmp->type = TYPE_POINTER;
 		tmp->width = INT_SIZE;
-                tmp->extra.poin.ptype = $2.psymnode->extra.var.vartype;
-		$2.psymnode->extra.var.vartype = tmp;
+                tmp->extra.poin.ptype = NULL;
+		switch($2.psymnode->type){
+			case TYPE_VAR: 
+				$2.psymnode->extra.var.vartype = tmp;
+				break;
+			case TYPE_POINTER:
+				$2.psymnode->extra.poin.ptype = tmp;
+				break;
+			case TYPE_ARRAY:
+				$2.psymnode->extra.array.elemtype = tmp;
+				break;
+			default:
+				fprintf(stderr,"DEBUGERR!!:It shouldn't goes here!line224");
+		}		
                 //fprintf(stderr,"[DEBUG] set ID %s type to:%x\n",$1,current_type);
-                $$ = $2;
+                $$.psymnode = tmp;
 	}
 ;
 direct_declarator:
@@ -221,53 +255,40 @@ direct_declarator:
 		tmp->name = $1;
 		tmp->scope = current_scope;
 		tmp->type = TYPE_VAR;
-		tmp->extra.var.vartype = current_type;
+		tmp->extra.var.vartype = NULL;
 		//fprintf(stderr,"[DEBUG] set ID %s type to:%x\n",$1,current_type);
+		current_symnode = tmp;
 		$$.psymnode = tmp;
-	}
-	| array_declarator {
-		$$ = $1;
 	}
 	| '(' declarator ')'{
 		$$ = $2;
 	}
-;
-array_declarator:
-	ID array_dimdec_list {
-		symtab_node_t *tmp = get_new_symnode();
-                tmp->name = $1;
-                tmp->scope = current_scope;
-                tmp->type = TYPE_VAR;
-                tmp->extra.var.vartype = $2.psymnode;
-		//fprintf(stderr,"[DEBUG] set ID %s type to:%x\n",$1,$2.psymnode);
-                $$.psymnode = tmp;
-        }
-;
-array_dimdec_list:
-	'[' constant ']' {
+	| direct_declarator '[' constant ']' {
                 symtab_node_t *tmp = get_new_symnode();
                 tmp->name = "czj";
                 tmp->scope = current_scope;
                 tmp->type = TYPE_ARRAY;
-		tmp->width = $2 * current_type->width;
-                tmp->extra.array.elemtype = current_type;
-		tmp->extra.array.count = $2;
-                $$.psymnode = tmp;
-	}
-	| '[' constant ']' array_dimdec_list {
-                symtab_node_t *tmp = get_new_symnode();
-                tmp->name = "czj";
-                tmp->scope = current_scope;
-                tmp->type = TYPE_ARRAY;
-		tmp->width = $2 * $4.psymnode->width;
-                tmp->extra.array.elemtype = $4.psymnode;
-		tmp->extra.array.count = $2;
+                tmp->extra.array.elemtype = NULL;
+		tmp->extra.array.count = $3;
+		switch($1.psymnode->type){
+                        case TYPE_VAR:
+                                $1.psymnode->extra.var.vartype = tmp;
+                                break;
+                        case TYPE_POINTER:
+                                $1.psymnode->extra.poin.ptype = tmp;
+                                break;
+                        case TYPE_ARRAY:
+                                $1.psymnode->extra.array.elemtype = tmp;
+                                break;
+                        default:
+                                fprintf(stderr,"DEBUGERR!!:It shouldn't goes here!line224");
+                }
                 $$.psymnode = tmp;
 	}
 ;
 declaration_specifiers_sup:
 	declaration_specifiers {
-		current_type = $1.psymnode;
+		my_type = current_type = $1.psymnode;
 		$$ = $1;
 		//fprintf(stderr,"[DEBUG] set current_type to:%x\n",$1.psymnode);
 	}
@@ -360,7 +381,7 @@ struct_declaration:
 ;
 type_specifier_sup:
 	type_specifier {
-		current_type = $1.psymnode;
+		my_type = current_type = $1.psymnode;
 	}
 ;
 

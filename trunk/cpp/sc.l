@@ -55,6 +55,7 @@ continue {return CONTINUE;}
 \'.\' {yylval.num_val=yytext[1]; return CHARACTER;}
 {MACRO_NUMBER} {yylval.num_val=atof(yytext); return NUM;}
 {MACRO_ID} {yylval.id_val=strdup(yytext); return ID;}
+, {return yytext[0];}
 . {return yytext[0];}
 
 %%
