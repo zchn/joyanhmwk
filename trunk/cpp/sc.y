@@ -110,6 +110,8 @@ char *errtext_ptr;
 %left '+' '-'
 %left '*' '/'
 
+%left POINTTO
+
 %%
 cpp_prog:
 	start_part translation_unit {
@@ -437,17 +439,32 @@ parameter_list:
 ;
 parameter_declaration:
 	declaration_specifiers_sup declarator {
-		if($2.psymnode->extra.var.vartype->type == TYPE_ARRAY){
-			symtab_node_t *tmp = get_new_symnode();
+		symtab_node_t *tmp = current_type;
+		switch($2.psymnode->type){
+                        case TYPE_VAR:
+                                $2.psymnode->extra.var.vartype = tmp;
+                                break;
+                        case TYPE_POINTER:
+                                $2.psymnode->extra.poin.ptype = tmp;
+                                break;
+                        case TYPE_ARRAY:
+                                $2.psymnode->extra.array.elemtype = tmp;
+                                break;
+                        default:
+                                fprintf(stderr,"DEBUGERR!!:It shouldn't goes here!line224");
+                }
+		process_array_type(current_symnode);
+		if(current_symnode->extra.var.vartype->type == TYPE_ARRAY){
+			tmp = get_new_symnode();
 			tmp->name = "CZJ";
 			tmp->type = TYPE_POINTER;
 			tmp->scope = 1;
 			tmp->width = INT_SIZE;
-			tmp->extra.poin.ptype = $2.psymnode->extra.var.vartype->extra.array.elemtype;
-			$2.psymnode->extra.var.vartype = tmp;
+			tmp->extra.poin.ptype = current_symnode->extra.var.vartype->extra.array.elemtype;
+			current_symnode->extra.var.vartype = tmp;
 		}
-		$2.psymnode->scope = 1;
-		$$ = $2;
+		current_symnode->scope = 1;
+		$$.psymnode = current_symnode;
 	}
 ;
 
@@ -842,9 +859,9 @@ arithmetic_exp:
 	}
 	| arithmetic_exp '-' arithmetic_exp {
 		symtab_node_t *type;
-                type = $3->extra.var.vartype;
-                if($1->extra.var.vartype->type == TYPE_POINTER){
-                        type = $1->extra.var.vartype;
+                type = $1->extra.var.vartype;
+                if($3->extra.var.vartype->type == TYPE_POINTER){
+                        type = INT_TYPE_POINTER;
                 }
 		$$ = alloc_loc_and_insert(type,NULL);
 		OUT_LOCVAR($$->extra.var.offset);
@@ -893,7 +910,7 @@ unary_sup_expression:
 		$$=$1;
 	}
 	| '-' unary_sup_expression {
-		$$ = alloc_loc_and_insert(INT_TYPE_POINTER,NULL);
+		$$ = alloc_loc_and_insert(INT_TYPE_POINTER,"czj");
                 OUT_LOCVAR($$->extra.var.offset);
                 OUT_LOCVAR_VALUE($2->extra.var.offset);
                 OUT_MINUS;
@@ -901,7 +918,7 @@ unary_sup_expression:
 		OUT_POPS;
         }
 	| '!' unary_sup_expression {
-		$$ = alloc_loc_and_insert(INT_TYPE_POINTER,NULL);
+		$$ = alloc_loc_and_insert(INT_TYPE_POINTER,"czj");
                 OUT_LOCVAR($$->extra.var.offset);
                 OUT_LOCVAR_VALUE($2->extra.var.offset);
                 OUT_NOTX;
@@ -911,7 +928,15 @@ unary_sup_expression:
 ;
 noarray_expression:
 	unary_expression {
-		$$ = $1.retvar;
+		if($1.retvar->scope == SCOPE_GLOBAL){
+			$$ = alloc_loc_and_insert($1.retvar->extra.var.vartype,NULL);
+			OUT_LOCVAR($$->extra.var.offset);
+			OUT_ESVAR($1.retvar->extra.var.offset);
+			OUT_VALUEL($1.retvar->extra.var.vartype->width);
+			OUT_ASSIGNL($1.retvar->extra.var.vartype->width);
+		}else{
+			$$ = $1.retvar;
+		}
 	}
 ;
 unary_expression:
@@ -973,7 +998,7 @@ postfix_expression:
 			OUT_INDEX($1.retvar->extra.var.vartype->extra.poin.ptype->width,lineno);
 			OUT_ASSIGN;
 			OUT_POPS;
-			$$.offsetvar = NULL;
+			$$.offsetvar = $$.retvar;
 		}else{
 			$$.retvar=alloc_loc_and_insert($1.retvar->extra.var.vartype->extra.poin.ptype,"czj");
 			$$.offsetvar=alloc_loc_and_insert($1.retvar->extra.var.vartype,"czjpoin");
@@ -997,7 +1022,7 @@ postfix_expression:
 		}else{
 			symtab_node_t *tmp;
 			tmp = find_symnode_by_name($3,
-				$$.offsetvar->extra.var.vartype->extra.poin.ptype->extra.struc.elemlist);
+				$1.offsetvar->extra.var.vartype->extra.poin.ptype->extra.struc.elemlist);
 			if(tmp == NULL){
 				errtext_ptr = $3;
 				yyerror("No such member variable:");
@@ -1009,17 +1034,72 @@ postfix_expression:
                         	OUT_FIELD(tmp->extra.var.offset);
                         	OUT_ASSIGN;
                         	OUT_POPS;
-				$1.offsetvar->extra.var.vartype->extra.poin.ptype = tmp->extra.var.vartype;
+				symtab_node_t *tmppoin = get_new_symnode();
+				memcpy(tmppoin,$1.offsetvar->extra.var.vartype,sizeof(symtab_node_t));
+				tmppoin->extra.poin.ptype = tmp->extra.var.vartype;
+				$1.offsetvar->extra.var.vartype = tmppoin;
                         	$$.offsetvar = $1.offsetvar;
-				$$.retvar = alloc_loc_and_insert(tmp->extra.var.vartype,"CZJtmpvalue");
-                                OUT_LOCVAR($$.retvar->extra.var.offset);
-                                if($$.offsetvar->scope == SCOPE_GLOBAL){
-                                        OUT_ESVAR_VALUE($$.offsetvar->extra.var.offset);
+				if(tmp->extra.var.vartype->type == TYPE_ARRAY){
+					$$.retvar = $$.offsetvar;
+					$$.retvar->extra.var.vartype->extra.poin.ptype = 
+						tmp->extra.var.vartype->extra.array.elemtype;
+				}else{
+					$$.retvar = alloc_loc_and_insert(tmp->extra.var.vartype,"CZJtmpvalue");
+                                	OUT_LOCVAR($$.retvar->extra.var.offset);
+                                	if($$.offsetvar->scope == SCOPE_GLOBAL){
+                                        	OUT_ESVAR_VALUE($$.offsetvar->extra.var.offset);
+                                	}else{
+                                        	OUT_LOCVAR_VALUE($$.offsetvar->extra.var.offset);
+                                	}
+					OUT_VALUEL(tmp->extra.var.vartype->width);
+					OUT_ASSIGNL(tmp->extra.var.vartype->width);
+				}
+			}
+		}
+	}
+	| postfix_expression POINTTO ID {
+		$1.offsetvar = $1.retvar;//IMPORTANT
+		if($1.offsetvar == NULL || $1.offsetvar->extra.var.vartype->type != TYPE_POINTER
+			|| $1.offsetvar->extra.var.vartype->extra.poin.ptype->type != TYPE_STRUCT){
+			errtext_ptr = $1.offsetvar->name;
+                        yyerror("Can't convert to struct:");
+			errtext_ptr = NULL;
+                        $$ = $1;
+		}else{
+			symtab_node_t *tmp;
+			tmp = find_symnode_by_name($3,
+				$1.offsetvar->extra.var.vartype->extra.poin.ptype->extra.struc.elemlist);
+			if(tmp == NULL){
+				errtext_ptr = $3;
+				yyerror("No such member variable:");
+				errtext_ptr = NULL;
+				$$ = $1;
+			}else{
+                        	OUT_LOCVAR($1.offsetvar->extra.var.offset);
+                        	OUT_LOCVAR_VALUE($1.offsetvar->extra.var.offset);
+                        	OUT_FIELD(tmp->extra.var.offset);
+                        	OUT_ASSIGN;
+                        	OUT_POPS;
+				symtab_node_t *tmppoin = get_new_symnode();
+                                memcpy(tmppoin,$1.offsetvar->extra.var.vartype,sizeof(symtab_node_t));
+                                tmppoin->extra.poin.ptype = tmp->extra.var.vartype;
+                                $1.offsetvar->extra.var.vartype = tmppoin;
+                        	$$.offsetvar = $1.offsetvar;
+				if(tmp->extra.var.vartype->type == TYPE_ARRAY){
+                                        $$.retvar = $1.offsetvar;
+					 $$.retvar->extra.var.vartype->extra.poin.ptype =
+                                                tmp->extra.var.vartype->extra.array.elemtype;
                                 }else{
-                                        OUT_LOCVAR_VALUE($$.offsetvar->extra.var.offset);
+                                        $$.retvar = alloc_loc_and_insert(tmp->extra.var.vartype,"CZJtmpvalue");
+                                        OUT_LOCVAR($$.retvar->extra.var.offset);
+                                        if($$.offsetvar->scope == SCOPE_GLOBAL){
+                                                OUT_ESVAR_VALUE($$.offsetvar->extra.var.offset);
+                                        }else{
+                                                OUT_LOCVAR_VALUE($$.offsetvar->extra.var.offset);
+                                        }
+                                        OUT_VALUEL(tmp->extra.var.vartype->width);
+                                        OUT_ASSIGNL(tmp->extra.var.vartype->width);
                                 }
-				OUT_VALUEL(tmp->extra.var.vartype->width);
-				OUT_ASSIGNL(tmp->extra.var.vartype->width);
 			}
 		}
 	}
@@ -1092,7 +1172,16 @@ primary_expression:
 				}
 				OUT_ASSIGN;
 				OUT_POPS;
-				$$.retvar = tmp;
+				symtab_node_t *tmp3 = alloc_loc_and_insert(tmp->extra.var.vartype,"czj");
+				OUT_LOCVAR(tmp3->extra.var.offset);
+				if(tmp->scope == SCOPE_GLOBAL){
+                                        OUT_ESVAR_VALUE(tmp->extra.var.offset);
+                                }else{
+                                        OUT_LOCVAR_VALUE(tmp->extra.var.offset);
+                                }
+				OUT_ASSIGN;
+                                OUT_POPS;
+				$$.retvar = tmp3;
                                 $$.offsetvar = tmp2;
 			}else if(tmp->extra.var.vartype->type == TYPE_ARRAY){
 				symtab_node_t *poin = get_new_symnode();

@@ -3,6 +3,8 @@
 
 #include <malloc.h>
 #include "list.h"
+#include <string.h>
+
 
 #define INVALID_ADDR 987654
 
