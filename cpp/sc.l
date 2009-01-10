@@ -46,6 +46,7 @@ continue {return CONTINUE;}
 \> {return MORETHAN;}
 \<\= {return LESSEQU;}
 \>\= {return MOREEQU;}
+\-\> {return POINTTO;}
 \{ {push_symstack(main_symstack, main_symtab->next); current_scope++; return '{';}
 \} {
 	deleted_symtab = main_symtab->next;
