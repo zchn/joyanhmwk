@@ -8,6 +8,7 @@
 
 #include <inc/memlayout.h>
 #include <inc/assert.h>
+#include <kern/monitor.h>
 
 
 /* This macro takes a kernel virtual address -- an address that points above
@@ -75,8 +76,10 @@ page2pa(struct Page *pp)
 static inline struct Page*
 pa2page(physaddr_t pa)
 {
-	if (PPN(pa) >= npage)
+	if (PPN(pa) >= npage){
+		mon_backtrace(0,NULL,NULL);
 		panic("pa2page called with invalid pa");
+	}
 	return &pages[PPN(pa)];
 }
 

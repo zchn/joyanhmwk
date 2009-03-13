@@ -118,11 +118,16 @@ boot_alloc(uint32_t n, uint32_t align)
 
 	// LAB 2: Your code here:
 	//	Step 1: round boot_freemem up to be aligned properly
+	if(((uint32_t)boot_freemem & (align-1)) != 0){
+		boot_freemem += align;
+		boot_freemem = (char *)((uint32_t)boot_freemem & ~(align-1));
+	}
 	//	Step 2: save current value of boot_freemem as allocated chunk
+	v = boot_freemem;
 	//	Step 3: increase boot_freemem to record allocation
+	boot_freemem += n;
 	//	Step 4: return allocated chunk
-
-	return NULL;
+	return v;
 }
 
 // Set up a two-level page table:
@@ -145,7 +150,7 @@ i386_vm_init(void)
 	size_t n;
 
 	// Delete this line:
-	panic("i386_vm_init: This function is not finished\n");
+	//panic("i386_vm_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -173,7 +178,8 @@ i386_vm_init(void)
 	// 'npage' equals the number of physical pages in memory.  User-level
 	// programs will get read-only access to the array as well.
 	// You must allocate the array yourself.
-	// Your code goes here: 
+	// Your code goes here:
+	pages = boot_alloc(sizeof(struct Page)*npage,PGSIZE); 
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -431,10 +437,21 @@ page_init(void)
 	//
 	// Change the code to reflect this.
 	int i;
+	extern char end[];
+	struct Page *pbegin,*pend;
 	LIST_INIT(&page_free_list);
 	for (i = 0; i < npage; i++) {
 		pages[i].pp_ref = 0;
 		LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
+	}
+	LIST_REMOVE(&pages[0],pp_link);
+	pages[0].pp_ref = 1;
+	pbegin = pa2page(IOPHYSMEM);
+	pend = pa2page(PADDR(boot_freemem));
+	while(pbegin <= pend){
+		LIST_REMOVE(pbegin,pp_link);
+		pbegin->pp_ref = 1;
+		pbegin ++;
 	}
 }
 
@@ -466,8 +483,14 @@ page_initpp(struct Page *pp)
 int
 page_alloc(struct Page **pp_store)
 {
-	// Fill this function in
-	return -E_NO_MEM;
+	assert(pp_store != NULL);
+	struct Page * ret = LIST_FIRST(&page_free_list);
+	if(ret == NULL)
+		return -E_NO_MEM;
+	LIST_REMOVE(ret,pp_link);
+	page_initpp(ret);
+	(*pp_store) = ret;
+	return 0;
 }
 
 //
@@ -477,7 +500,11 @@ page_alloc(struct Page **pp_store)
 void
 page_free(struct Page *pp)
 {
-	// Fill this function in
+	if(pp == NULL)
+		return;
+	assert(pp->pp_ref == 0);
+	LIST_INSERT_HEAD(&page_free_list, pp, pp_link);
+	return;
 }
 
 //
@@ -507,7 +534,21 @@ page_decref(struct Page* pp)
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
+	struct Page *newpage;
 	// Fill this function in
+	if((pgdir[PDX(va)] & PTE_P) != 0){
+		return &(((pte_t *)KADDR(PTE_ADDR(pgdir[PDX(va)])))[PTX(va)]);
+	}else if(create == 0){
+		return NULL;
+	}else{
+		if(page_alloc(&newpage) < 0)
+			return NULL;
+		newpage->pp_ref = 1;
+		memset(page2kva(newpage),0,PGSIZE);//TODO ???check out
+		pgdir[PDX(va)] = page2pa(newpage) | PTE_P;
+		return &(((pte_t *)KADDR(PTE_ADDR(pgdir[PDX(va)])))[PTX(va)]);
+	}
+	assert(0);
 	return NULL;
 }
 
@@ -534,6 +575,20 @@ int
 page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm) 
 {
 	// Fill this function in
+	pte_t *ppte = pgdir_walk(pgdir,va,1);
+	if(ppte == NULL)
+		return -E_NO_MEM;
+	if(((*ppte) & PTE_P) != 0){
+		if(PTE_ADDR(*ppte) != page2pa(pp)){
+			page_remove(pgdir,va);
+		}else{
+			//pp already mapped to va, balance the ++ operation below
+			pp->pp_ref--;
+		}
+	}
+	*ppte = page2pa(pp) | perm | PTE_P;
+	pp->pp_ref ++;
+	tlb_invalidate(pgdir,va);
 	return 0;
 }
 
@@ -551,6 +606,16 @@ static void
 boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+	size_t index;
+	pte_t *ppte;
+	assert((la&(PGSIZE-1)) == 0);
+	assert((pa&(PGSIZE-1)) == 0);
+	assert((size&(PGSIZE-1)) == 0);
+	for(index = 0;index < size;index+=PGSIZE){
+		ppte = pgdir_walk(pgdir, (void *)(la+index), 1);
+		(*ppte) = (pa+index)|perm|PTE_P;
+	}
+	return;
 }
 
 //
@@ -567,6 +632,13 @@ struct Page *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
+	pte_t *ppte = pgdir_walk(pgdir,va,0);
+	if(ppte == NULL)
+		return NULL;
+	if(pte_store != NULL)
+		(*pte_store) = ppte;
+	if(*ppte & PTE_P)
+		return pa2page(*ppte);
 	return NULL;
 }
 
@@ -588,7 +660,14 @@ page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 void
 page_remove(pde_t *pgdir, void *va)
 {
-	// Fill this function in
+	pte_t *ppte;
+	struct Page *page = page_lookup(pgdir,va,&ppte);
+	if(page == NULL)
+		return;
+	page_decref(page);
+	*ppte = 0;
+	tlb_invalidate(pgdir,va);
+	return;
 }
 
 //
@@ -612,7 +691,6 @@ page_check(void)
 	pte_t *ptep, *ptep1;
 	void *va;
 	int i;
-
 	// should be able to allocate three pages
 	pp0 = pp1 = pp2 = 0;
 	assert(page_alloc(&pp0) == 0);
@@ -643,7 +721,6 @@ page_check(void)
 	assert(check_va2pa(boot_pgdir, 0x0) == page2pa(pp1));
 	assert(pp1->pp_ref == 1);
 	assert(pp0->pp_ref == 1);
-
 	// should be able to map pp2 at PGSIZE because pp0 is already allocated for page table
 	assert(page_insert(boot_pgdir, pp2, (void*) PGSIZE, 0) == 0);
 	assert(check_va2pa(boot_pgdir, PGSIZE) == page2pa(pp2));
@@ -651,6 +728,7 @@ page_check(void)
 
 	// should be no free memory
 	assert(page_alloc(&pp) == -E_NO_MEM);
+
 
 	// should be able to map pp2 at PGSIZE because it's already there
 	assert(page_insert(boot_pgdir, pp2, (void*) PGSIZE, 0) == 0);
