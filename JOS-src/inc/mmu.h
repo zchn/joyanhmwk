@@ -57,6 +57,7 @@
 #define PDXSHIFT	22		// offset of PDX in a linear address
 
 // Page table/directory entry flags.
+// IA32 Vol3A Page 117
 #define PTE_P		0x001	// Present
 #define PTE_W		0x002	// Writeable
 #define PTE_U		0x004	// User

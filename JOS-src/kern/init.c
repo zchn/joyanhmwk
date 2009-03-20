@@ -31,8 +31,6 @@ i386_init(void)
 	i386_vm_init();
 
 
-
-
 //        cprintf("\x1b[31;47mThis\x1b[32;40m is\x1b[30;43m colorful \x1b[36;40m terminal!\n");
 
 

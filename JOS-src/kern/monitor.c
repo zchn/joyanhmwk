@@ -10,6 +10,7 @@
 #include <kern/console.h>
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
+#include <kern/pmap.h>
 
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
@@ -25,6 +26,7 @@ static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
         { "backtrace", "Display the current backtrace",mon_backtrace },
+        { "showmappings", "Display the mmu mappings",mon_showmappings },
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -84,6 +86,39 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+
+int
+mon_showmappings(int argc, char **argv, struct Trapframe *tf)
+{
+	if(argc != 3) goto USAGE;
+	uintptr_t beg_addr,end_addr,curr;
+	beg_addr = (uintptr_t) strtol(argv[1],NULL,0);
+	end_addr = (uintptr_t) strtol(argv[2],NULL,0);
+	cprintf("Page mapping from %s to %s:\n",argv[1],argv[2]);
+	for(curr = beg_addr; curr < end_addr+PGSIZE; curr += PGSIZE){
+		pte_t *ppte = pgdir_walk((pde_t *)rcr3(), (const void *)curr, 0);
+		if(ppte == NULL){
+			cprintf("   V:%08x -> NOT MAPPED\n");
+		}else{
+			pte_t pte = *ppte;
+			cprintf("   V:%08x -> P:%08x",curr-PGOFF(curr),PTE_ADDR(pte));
+			if(pte & PTE_P) cprintf(" P");
+			if(pte & PTE_W) cprintf(" W");
+			if(pte & PTE_U) cprintf(" U");
+			if(pte & PTE_PWT) cprintf(" PWT");
+			if(pte & PTE_PCD) cprintf(" PCD");
+			if(pte & PTE_A) cprintf(" A");
+			if(pte & PTE_D) cprintf(" D");
+			if(pte & PTE_PS) cprintf(" PS");
+			if(pte & PTE_MBZ) cprintf(" MBZ");
+			cprintf("\n");
+		}
+	}
+	return 0;
+USAGE:
+	cprintf("USAGE: showmappings beg_addr end_addr\n");
+	return 0;
+}
 
 
 /***** Kernel monitor command interpreter *****/

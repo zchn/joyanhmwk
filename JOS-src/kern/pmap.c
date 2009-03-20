@@ -203,7 +203,8 @@ i386_vm_init(void)
 	//    - pages -- kernel RW, user NONE
 	//    - the read-only version mapped at UPAGES -- kernel R, user R
 	// Your code goes here:
-
+	//boot_map_segment(pgdir, (uintptr_t) pages, PTSIZE, (physaddr_t) PADDR(pages), PTE_P | PTE_W);
+	boot_map_segment(pgdir, (uintptr_t) UPAGES, PTSIZE, (physaddr_t) PADDR(pages), PTE_P | PTE_U);
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -214,6 +215,8 @@ i386_vm_init(void)
 	//     * [KSTACKTOP-PTSIZE, KSTACKTOP-KSTKSIZE) -- not backed => faults
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
+	boot_map_segment(pgdir, (uintptr_t) KSTACKTOP-KSTKSIZE, KSTKSIZE, (physaddr_t) PADDR(bootstack), PTE_P | PTE_W);
+	boot_map_segment(pgdir, (uintptr_t) KSTACKTOP-PTSIZE, PTSIZE-KSTKSIZE, (physaddr_t) 0x0, PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE. 
@@ -223,6 +226,8 @@ i386_vm_init(void)
 	// we just set up the amapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here: 
+	boot_map_segment(pgdir, (uintptr_t) KERNBASE, 0x10000000, (physaddr_t) 0x0, PTE_P | PTE_W);
+
 
 	// Check that the initial page directory has been set up correctly.
 	check_boot_pgdir();
@@ -250,6 +255,7 @@ i386_vm_init(void)
 
 	// Turn on paging.
 	cr0 = rcr0();
+
 	cr0 |= CR0_PE|CR0_PG|CR0_AM|CR0_WP|CR0_NE|CR0_TS|CR0_EM|CR0_MP;
 	cr0 &= ~(CR0_TS|CR0_EM);
 	lcr0(cr0);
