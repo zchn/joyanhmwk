@@ -550,8 +550,8 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 		if(page_alloc(&newpage) < 0)
 			return NULL;
 		newpage->pp_ref = 1;
-		memset(page2kva(newpage),0,PGSIZE);//TODO ???check out
-		pgdir[PDX(va)] = page2pa(newpage) | PTE_P;
+		memset(page2kva(newpage),0,PGSIZE);
+		pgdir[PDX(va)] = page2pa(newpage) | PTE_P | PTE_U | PTE_W;
 		return &(((pte_t *)KADDR(PTE_ADDR(pgdir[PDX(va)])))[PTX(va)]);
 	}
 	assert(0);
