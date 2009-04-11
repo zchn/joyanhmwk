@@ -9,6 +9,7 @@
 #include <inc/memlayout.h>
 #include <inc/assert.h>
 #include <kern/monitor.h>
+struct Env;
 
 
 /* This macro takes a kernel virtual address -- an address that points above
@@ -56,10 +57,17 @@ int	page_alloc(struct Page **pp_store);
 void	page_free(struct Page *pp);
 int	page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm);
 void	page_remove(pde_t *pgdir, void *va);
-struct Page *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store);
 void	page_decref(struct Page *pp);
+struct Page *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store);
+
+void boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int perm);
+
+
 
 void	tlb_invalidate(pde_t *pgdir, void *va);
+
+int   user_mem_check(struct Env *env, const void *va, size_t len, int perm);
+void  user_mem_assert(struct Env *env, const void *va, size_t len, int perm);
 
 static inline ppn_t
 page2ppn(struct Page *pp)

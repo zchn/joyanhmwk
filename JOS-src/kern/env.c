@@ -72,6 +72,13 @@ void
 env_init(void)
 {
 	// LAB 3: Your code here.
+	int i;
+	memset(envs,0,sizeof(struct Env)*NENV);
+	LIST_INIT(&env_free_list);
+	for(i = NENV-1; i >= 0; i--){
+		LIST_INSERT_HEAD(&env_free_list,&envs[i],env_link);
+	}
+
 }
 
 //
@@ -110,6 +117,51 @@ env_setup_vm(struct Env *e)
 	//	env_pgdir's pp_ref!
 
 	// LAB 3: Your code here.
+	e->env_pgdir = page2kva(p);
+	p->pp_ref++;
+	e->env_cr3 = page2pa(p);
+        memset(e->env_pgdir,0,PGSIZE);
+
+	//////////////////////////////////////////////////////////////////////
+	// Map 'pages' read-only by the user at linear address UPAGES
+	// (ie. perm = PTE_U | PTE_P)
+	// Permissions:
+	//    - pages -- kernel RW, user NONE
+	//    - the read-only version mapped at UPAGES -- kernel R, user R
+	// Your code goes here:
+	//boot_map_segment(pgdir, (uintptr_t) pages, PTSIZE, (physaddr_t) PADDR(pages), PTE_P | PTE_W);
+	boot_map_segment(e->env_pgdir, (uintptr_t) UPAGES, PTSIZE, (physaddr_t) PADDR(pages), PTE_P | PTE_U);
+       
+	//////////////////////////////////////////////////////////////////////
+	// Map the 'envs' array read-only by the user at linear address UENVS
+	// (ie. perm = PTE_U | PTE_P).
+	// Permissions:
+	//    - envs itself -- kernel RW, user NONE
+	//    - the image of envs mapped at UENVS  -- kernel R, user R
+	boot_map_segment(e->env_pgdir, (uintptr_t) UENVS, sizeof(struct Env)*NENV, (physaddr_t) PADDR(envs), PTE_P | PTE_U);
+
+
+	//////////////////////////////////////////////////////////////////////
+	// Map the kernel stack (symbol name "bootstack").  The complete VA
+	// range of the stack, [KSTACKTOP-PTSIZE, KSTACKTOP), breaks into two
+	// pieces:
+	//     * [KSTACKTOP-KSTKSIZE, KSTACKTOP) -- backed by physical memory
+	//     * [KSTACKTOP-PTSIZE, KSTACKTOP-KSTKSIZE) -- not backed => faults
+	//     Permissions: kernel RW, user NONE
+	// Your code goes here:
+	boot_map_segment(e->env_pgdir, (uintptr_t) KSTACKTOP-KSTKSIZE, KSTKSIZE, (physaddr_t) PADDR(bootstack), PTE_P | PTE_W);
+	boot_map_segment(e->env_pgdir, (uintptr_t) KSTACKTOP-PTSIZE, PTSIZE-KSTKSIZE, (physaddr_t) 0x0, PTE_P);
+
+	//////////////////////////////////////////////////////////////////////
+	// Map all of physical memory at KERNBASE. 
+	// Ie.  the VA range [KERNBASE, 2^32) should map to
+	//      the PA range [0, 2^32 - KERNBASE)
+	// We might not have 2^32 - KERNBASE bytes of physical memory, but
+	// we just set up the amapping anyway.
+	// Permissions: kernel RW, user NONE
+	// Your code goes here: 
+	boot_map_segment(e->env_pgdir, (uintptr_t) KERNBASE, 0x10000000, (physaddr_t) 0x0, PTE_P | PTE_W);
+
 
 	// VPT and UVPT map the env's own page table, with
 	// different permissions.
@@ -194,6 +246,20 @@ segment_alloc(struct Env *e, void *va, size_t len)
 	// Hint: It is easier to use segment_alloc if the caller can pass
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round len up.
+	void *a_va = va - PGOFF(va);
+	size_t a_len = PGOFF(len) == 0 ? len:len+PGSIZE-PGOFF(len+PGSIZE);
+	int i,r;
+	struct Page *p = NULL;
+
+	for(i = 0; i * PGSIZE < a_len; i++){
+		if ((r = page_alloc(&p)) < 0){
+			panic("In segmant_alloc:%e",r);
+		}
+		page_insert(e->env_pgdir,p,a_va+i*PGSIZE,
+				PTE_P|PTE_W|PTE_U);
+		p = NULL;
+	}
+	return;
 }
 
 //
@@ -251,11 +317,51 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
+	struct Proghdr *ph, *eph;
+	struct Elf *elfbin = (struct Elf *)binary;
+	pde_t *cr3_bak = (pde_t *)rcr3();
+	lcr3(e->env_cr3);
+
+	if (elfbin->e_magic != ELF_MAGIC)
+		panic("Bad elf format!");
+
+	// load each program segment (ignores ph flags)
+	ph = (struct Proghdr *) ((uint8_t *) elfbin + elfbin->e_phoff);
+	eph = ph + elfbin->e_phnum;
+
+	for (; ph < eph; ph++){
+		if(ph->p_type != ELF_PROG_LOAD){
+			continue;
+		}
+		assert(ph->p_filesz <= ph->p_memsz);
+		segment_alloc(e,(void *)ph->p_va,ph->p_memsz);
+
+                cprintf("DEBUG:%08x to %08x fs: %08x ms: %08x\n",
+                        binary+ph->p_offset,
+                        ph->p_va,
+                        ph->p_filesz,
+                        ph->p_memsz);
+
+		memmove((void *)ph->p_va,binary+ph->p_offset,ph->p_filesz);
+		memset((void *)ph->p_va+ph->p_filesz,0,ph->p_memsz-ph->p_filesz);
+	}
+	e->env_tf.tf_eip = elfbin->e_entry;
 
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
 
 	// LAB 3: Your code here.
+	int r;
+	struct Page *p = NULL;
+	if ((r = page_alloc(&p)) < 0){
+		panic("In load_inode:%e",r);
+	}
+	page_insert(e->env_pgdir,p,(void *) USTACKTOP-PGSIZE,PTE_P|PTE_U|PTE_W);
+	e->env_tf.tf_esp = USTACKTOP;
+	
+	lcr3((uint32_t)cr3_bak);
+	cprintf("DEBUG:Load done,ENTRY:%08x\n",e->env_tf.tf_eip);
+	return;
 }
 
 //
@@ -272,6 +378,13 @@ void
 env_create(uint8_t *binary, size_t size)
 {
 	// LAB 3: Your code here.
+	int r;
+	struct Env *newenv;
+	if((r = env_alloc(&newenv,0)) < 0){
+		panic("env_alloc in env_create:%e",r);
+	}
+	load_icode(newenv,binary,size);
+
 }
 
 //
@@ -383,7 +496,14 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 	
 	// LAB 3: Your code here.
+	if(curenv != e){
+		curenv = e;
+		e->env_runs++;
+		lcr3(e->env_cr3);
+	}
+	cprintf("DEBUG: I'm going to invoke env_pop_tf\n");
+	env_pop_tf(&(e->env_tf));
 
-        panic("env_run not yet implemented");
+        //panic("env_run not yet implemented");
 }
 

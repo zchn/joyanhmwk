@@ -8,6 +8,8 @@
 #include <kern/console.h>
 #include <kern/pmap.h>
 #include <kern/kclock.h>
+#include <kern/env.h>
+#include <kern/trap.h>
 
 
 void
@@ -30,13 +32,25 @@ i386_init(void)
 	i386_detect_memory();
 	i386_vm_init();
 
+	// Lab 3 user environment initialization functions
+	env_init();
+	idt_init();
 
-//        cprintf("\x1b[31;47mThis\x1b[32;40m is\x1b[30;43m colorful \x1b[36;40m terminal!\n");
+
+	// Temporary test code specific to LAB 3
+#if defined(TEST)
+	// Don't touch -- used by grading script!
+	ENV_CREATE2(TEST, TESTSIZE);
+#else
+	// Touch all you want.
+	ENV_CREATE(user_hello);
+#endif // TEST*
 
 
-	// Drop into the kernel monitor.
-	while (1)
-		monitor(NULL);
+	// We only have one user environment for now, so just run it.
+	env_run(&envs[0]);
+
+
 }
 
 
@@ -65,6 +79,7 @@ _panic(const char *file, int line, const char *fmt,...)
 	cprintf("\n");
 	va_end(ap);
 	mon_backtrace(0,NULL,NULL);
+
 dead:
 	/* break into the kernel monitor */
 	while (1)
