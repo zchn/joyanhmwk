@@ -122,46 +122,7 @@ env_setup_vm(struct Env *e)
 	e->env_cr3 = page2pa(p);
         memset(e->env_pgdir,0,PGSIZE);
 
-	//////////////////////////////////////////////////////////////////////
-	// Map 'pages' read-only by the user at linear address UPAGES
-	// (ie. perm = PTE_U | PTE_P)
-	// Permissions:
-	//    - pages -- kernel RW, user NONE
-	//    - the read-only version mapped at UPAGES -- kernel R, user R
-	// Your code goes here:
-	//boot_map_segment(pgdir, (uintptr_t) pages, PTSIZE, (physaddr_t) PADDR(pages), PTE_P | PTE_W);
-	boot_map_segment(e->env_pgdir, (uintptr_t) UPAGES, PTSIZE, (physaddr_t) PADDR(pages), PTE_P | PTE_U);
-       
-	//////////////////////////////////////////////////////////////////////
-	// Map the 'envs' array read-only by the user at linear address UENVS
-	// (ie. perm = PTE_U | PTE_P).
-	// Permissions:
-	//    - envs itself -- kernel RW, user NONE
-	//    - the image of envs mapped at UENVS  -- kernel R, user R
-	boot_map_segment(e->env_pgdir, (uintptr_t) UENVS, sizeof(struct Env)*NENV, (physaddr_t) PADDR(envs), PTE_P | PTE_U);
-
-
-	//////////////////////////////////////////////////////////////////////
-	// Map the kernel stack (symbol name "bootstack").  The complete VA
-	// range of the stack, [KSTACKTOP-PTSIZE, KSTACKTOP), breaks into two
-	// pieces:
-	//     * [KSTACKTOP-KSTKSIZE, KSTACKTOP) -- backed by physical memory
-	//     * [KSTACKTOP-PTSIZE, KSTACKTOP-KSTKSIZE) -- not backed => faults
-	//     Permissions: kernel RW, user NONE
-	// Your code goes here:
-	boot_map_segment(e->env_pgdir, (uintptr_t) KSTACKTOP-KSTKSIZE, KSTKSIZE, (physaddr_t) PADDR(bootstack), PTE_P | PTE_W);
-	boot_map_segment(e->env_pgdir, (uintptr_t) KSTACKTOP-PTSIZE, PTSIZE-KSTKSIZE, (physaddr_t) 0x0, PTE_P);
-
-	//////////////////////////////////////////////////////////////////////
-	// Map all of physical memory at KERNBASE. 
-	// Ie.  the VA range [KERNBASE, 2^32) should map to
-	//      the PA range [0, 2^32 - KERNBASE)
-	// We might not have 2^32 - KERNBASE bytes of physical memory, but
-	// we just set up the amapping anyway.
-	// Permissions: kernel RW, user NONE
-	// Your code goes here: 
-	boot_map_segment(e->env_pgdir, (uintptr_t) KERNBASE, 0x10000000, (physaddr_t) 0x0, PTE_P | PTE_W);
-
+	memmove(&(e->env_pgdir[PDX(UTOP)]),(void *)PGADDR(PDX(UVPT),PDX(UVPT),PDX(UTOP)*sizeof(pte_t)),(PDX(0xFFFFFFFF)-PDX(UTOP)+1)*sizeof(pte_t));
 
 	// VPT and UVPT map the env's own page table, with
 	// different permissions.
