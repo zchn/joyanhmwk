@@ -63,7 +63,6 @@ struct Page *page_lookup(pde_t *pgdir, void *va, pte_t **pte_store);
 void boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int perm);
 
 
-
 void	tlb_invalidate(pde_t *pgdir, void *va);
 
 int   user_mem_check(struct Env *env, const void *va, size_t len, int perm);
