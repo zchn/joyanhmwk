@@ -11,12 +11,18 @@
 
 static struct Taskstate ts;
 
+extern void * idttbl;
+
 /* Interrupt descriptor table.  (Must be built at run time because
  * shifted function addresses can't be represented in relocation records.)
  */
 struct Gatedesc idt[256] = { { 0 } };
 struct Pseudodesc idt_pd = {
 	sizeof(idt) - 1, (uint32_t) idt
+};
+struct idttbl_t{
+	long num;
+	long name;
 };
 
 
@@ -57,8 +63,20 @@ void
 idt_init(void)
 {
 	extern struct Segdesc gdt[];
-	
+	int i = 0;
 	// LAB 3: Your code here.
+	struct idttbl_t *pidttbl = (struct idttbl_t *)((void *)&idttbl+4);
+	for(i = 0; pidttbl[i].name != 0; i++){
+		switch(pidttbl[i].num){
+		case T_BRKPT:
+		case T_SYSCALL:
+			SETGATE(idt[pidttbl[i].num], 0, GD_KT, pidttbl[i].name,3);
+			break;
+		default:
+			SETGATE(idt[pidttbl[i].num], 0, GD_KT, pidttbl[i].name,0);
+			break;
+		}
+	}
 
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
@@ -112,7 +130,14 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
-	
+	switch(tf->tf_trapno){
+	case T_BRKPT:
+		monitor(tf);
+		return;
+	case T_PGFLT:
+		page_fault_handler(tf);
+		return;
+	}
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);

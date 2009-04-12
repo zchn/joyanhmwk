@@ -336,11 +336,11 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 		assert(ph->p_filesz <= ph->p_memsz);
 		segment_alloc(e,(void *)ph->p_va,ph->p_memsz);
 
-                cprintf("DEBUG:%08x to %08x fs: %08x ms: %08x\n",
-                        binary+ph->p_offset,
-                        ph->p_va,
-                        ph->p_filesz,
-                        ph->p_memsz);
+                //cprintf("DEBUG:%08x to %08x fs: %08x ms: %08x\n",
+                //        binary+ph->p_offset,
+                //        ph->p_va,
+                 //       ph->p_filesz,
+                 //       ph->p_memsz);
 
 		memmove((void *)ph->p_va,binary+ph->p_offset,ph->p_filesz);
 		memset((void *)ph->p_va+ph->p_filesz,0,ph->p_memsz-ph->p_filesz);
@@ -360,7 +360,7 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 	e->env_tf.tf_esp = USTACKTOP;
 	
 	lcr3((uint32_t)cr3_bak);
-	cprintf("DEBUG:Load done,ENTRY:%08x\n",e->env_tf.tf_eip);
+	//cprintf("DEBUG:Load done,ENTRY:%08x\n",e->env_tf.tf_eip);
 	return;
 }
 
@@ -501,7 +501,7 @@ env_run(struct Env *e)
 		e->env_runs++;
 		lcr3(e->env_cr3);
 	}
-	cprintf("DEBUG: I'm going to invoke env_pop_tf\n");
+//	cprintf("DEBUG: I'm going to invoke env_pop_tf\n");
 	env_pop_tf(&(e->env_tf));
 
         //panic("env_run not yet implemented");
