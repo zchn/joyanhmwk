@@ -1,0 +1,192 @@
+% Copyright 2009 by Joyan <joyanlj@gmail.com>.
+% Last Modified Feb. 20, 2009
+%
+% In principle, this file can be redistributed and/or modified under
+% the terms of the GNU Public License, version 2.
+%
+% However, this file is supposed to be a template to be modified for
+% your own needs. For this reason, if you use this file as a template
+% and not specifically distribute it as part of a another
+% package/program, I grant the extra permission to freely copy and
+% modify this file as you see fit and even to delete this copyright
+% notice.
+
+\documentclass[a4paper,dvipdfm]{article}
+\usepackage[BoldFont,SlantFont,CJKnumber]{xeCJK}%配合xetex >0.997解决
+                                %中英文显示问题
+\usepackage{indentfirst}%用于首行缩进
+\usepackage[width=500pt]{geometry}%用于设置页面大小
+\usepackage{listings}%用于提供lstlisting代码显示环境
+\usepackage[dvipdfm]{graphicx}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{xcolor}
+%\usepackage{threeparttable}%用于表格内注释
+%\usepackage[centerlast]{caption2} %浮动图形和表格标题样式
+%\usepackage[rightcaption]{sidecap}%轻松的得到标题在一边的浮动图形或表格
+%\usepackage{colortbl}%彩色表格
+%\usepackage{multirow}%排版表格里的跨行文本数据和对齐方式
+%\usepackage{textcomp}%常见数理单位和货币符号
+%\usepackage[section]{placeins}%立即处理浮动体，section选项要求浮动体在它们所在的章节中排出
+%\usepackage{subfigure} %%图形或表格并排排列
+
+% \usepackage{fancyhdr}%设置页眉页脚
+% \fancypagestyle{plain}{%
+%   \fancyhf{}              
+%   \fancyhead[R]{\thepage}
+%   \fancyhead[L]{00648333}
+% }
+% \fancyhead[R]{\thepage}
+% \fancyhead[L]{00648333}
+% \pagestyle{fancy}
+
+% \usepackage{setspace}%设置行距
+% \doublespacing%双倍行距
+
+% \usepackage[dvipdfm,a4paper,CJKbookmarks,bookmarks=true,bookmarksopen=true]{hyperref}%很强大的一个东西
+% \hypersetup{
+%     pdftitle={},
+%     pdfauthor={Wen Zhang},
+%     pdfkeywords={},
+%     bookmarksnumbered,
+%     pagebackref=true,
+%     breaklinks=true,
+% %    pdfview=FitH,       % Or try pdfstartview={FitV}, This lead to uncorrect bookmarks
+%     urlcolor=cyan,
+%     colorlinks=true,
+%     citecolor=magenta,          %citeref's color
+%     linkcolor=magenta,
+%         }
+
+
+
+\DeclareGraphicsExtensions{.eps,.ps,.eps.gz,.ps.gz,.eps.Z,.EPS,.pdf,.PDF}%声明图片后缀
+
+\newcommand{\chuhao}{\fontsize{42pt}{\baselineskip}\selectfont}
+\newcommand{\xiaochuhao}{\fontsize{36pt}{\baselineskip}\selectfont}
+\newcommand{\yihao}{\fontsize{28pt}{\baselineskip}\selectfont}
+\newcommand{\erhao}{\fontsize{21pt}{\baselineskip}\selectfont}
+\newcommand{\xiaoerhao}{\fontsize{18pt}{\baselineskip}\selectfont}
+\newcommand{\sanhao}{\fontsize{15.75pt}{\baselineskip}\selectfont}
+\newcommand{\sihao}{\fontsize{14pt}{\baselineskip}\selectfont}
+\newcommand{\xiaosihao}{\fontsize{12pt}{\baselineskip}\selectfont}
+\newcommand{\wuhao}{\fontsize{10.5pt}{\baselineskip}\selectfont}
+\newcommand{\xiaowuhao}{\fontsize{9pt}{\baselineskip}\selectfont}
+\newcommand{\liuhao}{\fontsize{7.875pt}{\baselineskip}\selectfont}
+\newcommand{\qihao}{\fontsize{5.25pt}{\baselineskip}\selectfont}
+
+\defaultfontfeatures{Mapping=tex-text}
+\setmainfont{Droid Sans}% 设置缺省英文字体
+\setCJKmainfont[BoldFont=SimHei,ItalicFont=KaiTi_GB2312]{SimSun}% 设置缺省中文字体
+
+\renewcommand\refname{参考文献}
+
+\newcommand{\upcite}[1]{\textsuperscript{\cite{#1}}} %自定义命令\upcite, 使参考文献引用以上标出现
+
+\graphicspath{{figures/}}
+
+\renewcommand\contentsname{目录}
+\renewcommand\listfigurename{插图索引}
+\renewcommand\listtablename{表格索引}
+\newcommand\listequationname{公式索引}
+\newcommand\equationname{公式}
+\renewcommand\refname{参考文献}
+\renewcommand\indexname{索引}
+\renewcommand\figurename{图}
+\renewcommand\tablename{表}
+% \newcommand\CJKprechaptername{第}
+% \newcommand\CJKchaptername{章}
+% \newcommand\CJKthechapter{\@arabic\c@chapter}
+% \renewcommand\chaptername{\CJKprechaptername~\CJKthechapter~\CJKchaptername}
+\renewcommand\appendixname{附录}
+
+\makeatletter
+\newenvironment{tablehere}
+  {\def\@captype{table}}
+  {}
+
+\newenvironment{figurehere}
+  {\def\@captype{figure}}
+  {}
+\makeatother
+
+
+
+\begin{document}
+%  ABAP (R/2 4.3, R/2 5.0, R/3 3.1, R/3 4.6C, R/3 6.10)
+% ACSL                               Ada (83, 95)
+% Algol (60, 68)                     Assembler (x86masm)
+% Basic (Visual)                     C (ANSI, Objective, Sharp)
+% C++ (ANSI, GNU, ISO, Visual)       Caml (light, Objective)
+% Clean                              Cobol (1974, 1985, ibm)
+% Comal 80                           csh
+% Delphi                             Eiffel
+% Elan                               erlang
+% Euphoria                           Fortran (77, 90, 95)
+% GCL                                Haskell
+% HTML                               IDL (empty, CORBA)
+% Java (empty, AspectJ)              ksh
+% Lisp (empty, Auto)                 Logo
+% make (empty, gnu)                  Mathematica (1.0, 3.0)
+% Matlab                             Mercury
+% MetaPost                           Miranda
+% Mizar                              ML
+% Modula-2                           MuPAD
+% NASTRAN                            Oberon-2
+% OCL (decorative, OMG)              Octave
+% Pascal (Borland6, Standard, XSC)   Perl
+% PHP                                PL/I
+% POV                                Prolog
+% Python                             R
+% Reduce                             Ruby
+% S (empty, PLUS)                    SAS
+% Scilab                             SHELXL
+%                                    SQL
+% Simula (67, CII, DEC, IBM)
+% tcl (empty, tk)
+% TeX (AlLaTeX, common, LaTeX, plain, primitive)
+% VBScript                           Verilog
+% VHDL (empty, AMS)                  VRML (97)
+% XML
+\lstset{
+  language={[ANSI]C},
+  linewidth=0.8\textwidth{},
+  breaklines=true,
+  numbers=left,
+  numberstyle=\small{},
+  stepnumber=5,
+  numbersep=5pt,
+  columns=fullflexible,
+  basicstyle=\normalsize{}\ttfamily{},          % print whole listing small
+  backgroundcolor=\color{black!10!white},
+  frame=leftline,
+  emph={czj,joyan},
+  emphstyle=\color{blue}\bfseries,
+  keywordstyle=\color{blue}\bfseries,
+  identifierstyle=\color{black},           % nothing happens 
+  escapeinside=`',
+  commentstyle=\color{black}, % white comments
+  stringstyle=\ttfamily,      % typewriter type for strings
+  showstringspaces=false}     % no special string spaces
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%% 正文开始 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\title{一个简单的\LaTeX{}模板}
+\author{陈志杰 \\ joyanlj@gmail.com}
+\date{Feb. 2009}
+
+\maketitle
+  
+\section{主要数据结构}
+
+\appendix{}
+
+\bibliography{bibdb}
+\bibliographystyle{unsrt}
+
+
+\end{document}
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: t
+%%% End: 
