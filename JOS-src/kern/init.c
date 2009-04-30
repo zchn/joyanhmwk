@@ -10,6 +10,8 @@
 #include <kern/kclock.h>
 #include <kern/env.h>
 #include <kern/trap.h>
+#include <kern/sched.h>
+#include <kern/picirq.h>
 
 
 void
@@ -36,6 +38,13 @@ i386_init(void)
 	env_init();
 	idt_init();
 
+ 	// Lab 4 multitasking initialization functions
+        pic_init();
+ 	kclock_init();
+ 
+ 	// Should always have an idle process as first one.
+ 	ENV_CREATE(user_idle);
+
 
 	// Temporary test code specific to LAB 3
 #if defined(TEST)
@@ -43,13 +52,11 @@ i386_init(void)
 	ENV_CREATE2(TEST, TESTSIZE);
 #else
 	// Touch all you want.
-	ENV_CREATE(user_evilhello);
+	ENV_CREATE(user_primes);
 #endif // TEST*
 
-
-	// We only have one user environment for now, so just run it.
-	env_run(&envs[0]);
-
+ 	// Schedule and run the first user environment!
+ 	sched_yield();
 
 }
 
