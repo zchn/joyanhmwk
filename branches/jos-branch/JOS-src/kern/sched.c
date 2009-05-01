@@ -19,6 +19,16 @@ sched_yield(void)
 	// unless NOTHING else is runnable.
 
 	// LAB 4: Your code here.
+	
+	if(curenv == NULL){
+		curenv = &envs[0];
+	}
+	int i;
+	for(i = 1; i < NENV; i++){
+		if((envs+1+(curenv+i-envs-1)%(NENV-1))->env_status == ENV_RUNNABLE){
+			env_run(envs+1+(curenv+i-envs-1)%(NENV-1));
+		}
+	} 
 
 	// Run the special idle environment when nothing else is runnable.
 	if (envs[0].env_status == ENV_RUNNABLE)
