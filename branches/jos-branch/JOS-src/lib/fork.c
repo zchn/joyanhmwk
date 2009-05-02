@@ -25,6 +25,15 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
+	pte_t pte = ((pte_t *)vpt)[PPN(addr)];
+	if((err & FEC_WR) != 0 && (pte & PTE_COW) != 0){
+		sys_page_alloc(0,PFTEMP,PTE_P|PTE_U|PTE_W);
+		memmove(PFTEMP,ROUNDDOWN(addr,PGSIZE),PGSIZE);
+		sys_page_map(0,PFTEMP,0,ROUNDDOWN(addr,PGSIZE),PTE_P|PTE_U|PTE_W);
+		sys_page_unmap(0,PFTEMP);
+	}else{
+		panic("[%08x] Unknown page fault at %08x err: %x\n",env->env_id,addr,err);
+	}
 
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
@@ -35,7 +44,7 @@ pgfault(struct UTrapframe *utf)
 	
 	// LAB 4: Your code here.
 	
-	panic("pgfault not implemented");
+	//panic("pgfault not implemented");
 }
 
 //
@@ -56,7 +65,30 @@ duppage(envid_t envid, unsigned pn)
 	pte_t pte;
 
 	// LAB 4: Your code here.
-	panic("duppage not implemented");
+	//panic("duppage not implemented");
+	int ret;
+	pte_t p = ((pte_t *)vpt)[pn];
+	if((p & PTE_P) == 0){
+		panic("In duppage: p|PTE_P = 0\n");
+	}
+	if((p & PTE_U) == 0){
+		panic("In duppage: p |PTE_U = 0\n");
+	}
+	if((p & PTE_W) == 0 && (p & PTE_COW) == 0){
+		if((ret = sys_page_map(0, (void *)(pn*PGSIZE),
+				 envid, (void *)(pn*PGSIZE), PTE_P | PTE_U )) < 0){
+			return ret;
+		}
+	}else{
+		if((ret = sys_page_map(0, (void *)(pn*PGSIZE), 
+				envid, (void *)(pn*PGSIZE), PTE_P | PTE_U | PTE_COW)) < 0){
+			return ret;
+		}
+		if((ret = sys_page_map(0, (void *)(pn*PGSIZE), 
+				0, (void *)(pn*PGSIZE), PTE_P | PTE_U | PTE_COW)) < 0){
+			return ret;
+		}		
+	}
 	return 0;
 }
 
@@ -80,7 +112,55 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	panic("fork not implemented");
+	//panic("fork not implemented");
+	envid_t envid;
+	uint8_t *addr;
+	int r;
+	extern unsigned char end[];
+	set_pgfault_handler(pgfault);
+	envid = sys_exofork();
+	if (envid < 0)
+		panic("sys_exofork: %e", envid);
+	if (envid == 0) {
+		// We're the child.
+		// The copied value of the global variable 'env'
+		// is no longer valid (it refers to the parent!).
+		// Fix it and return 0.
+		env = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
+	// We're the parent.
+	int i,j;
+	for(i=0; i*PTSIZE < UTOP; i++) {
+		if(((pte_t *)vpd)[i] & PTE_P) {
+			//cprintf("\n\nmapping %08x",i*PTSIZE);
+			for(j=0; i*PTSIZE + j*PGSIZE < UTOP && j < NPTENTRIES; j++) {
+				if(i*PTSIZE + j*PGSIZE == UXSTACKTOP-PGSIZE){
+					continue;
+				}
+				//cprintf("mapping %08x",i*PTSIZE+ j*PGSIZE );
+				// Copy mapping if necessary
+				pte_t pte = ((pte_t *)vpt)[i*NPTENTRIES + j];
+				if( (pte & PTE_P) && (pte & PTE_U)){
+					duppage(envid, i*NPTENTRIES + j);
+				}
+			}
+		}
+	} 
+
+	if((r = sys_page_alloc(envid, (void *)UXSTACKTOP-PGSIZE, PTE_P|PTE_U|PTE_W))< 0){
+		panic("sys_page_alloc: %e", r);
+	}
+
+	// Also copy the stack we are currently running on.
+
+	// Start the child environment running
+	extern void _pgfault_upcall(void);//This is very important, you must dec it as a func pointer.
+	sys_env_set_pgfault_upcall(envid,_pgfault_upcall);
+	if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)
+		panic("sys_env_set_status: %e", r);
+
+	return envid;
 }
 
 // Challenge!

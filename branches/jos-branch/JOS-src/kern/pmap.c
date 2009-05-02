@@ -736,7 +736,9 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 		return -E_FAULT;
 	}
 	uint32_t i;
-	for(i = PPN(va); i <= PPN(va+len); i++){
+	void * a_va = (void *)ROUNDDOWN(va,PGSIZE);
+	size_t a_len = ROUNDUP(len,PGSIZE);
+	for(i = PPN(a_va); i < PPN(a_va+a_len); i++){
 		pte_t *ppte = 0,pte = 0;
 		struct Page * p = page_lookup(env->env_pgdir, (void *)(i<<PTXSHIFT), &ppte);
 		if(p == NULL){

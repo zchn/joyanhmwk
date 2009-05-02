@@ -93,9 +93,9 @@ mon_showmappings(int argc, char **argv, struct Trapframe *tf)
 {
 	if(argc != 3) goto USAGE;
 	uintptr_t beg_addr,end_addr,curr;
-	beg_addr = (uintptr_t) strtol(argv[1],NULL,0);
-	end_addr = (uintptr_t) strtol(argv[2],NULL,0);
-	cprintf("Page mapping from %s to %s:\n",argv[1],argv[2]);
+	beg_addr = (uintptr_t)ROUNDDOWN( strtol(argv[1],NULL,0),PGSIZE);
+	end_addr = (uintptr_t)ROUNDUP(strtol(argv[2],NULL,0),PGSIZE);
+	cprintf("Page mapping from %x to %x:\n",beg_addr,end_addr);
 	for(curr = beg_addr; curr < end_addr+PGSIZE; curr += PGSIZE){
 		pte_t *ppte = pgdir_walk((pde_t *)rcr3(), (const void *)curr, 0);
 		if(ppte == NULL){
