@@ -152,6 +152,9 @@ trap_dispatch(struct Trapframe *tf)
 			tf->tf_regs.reg_esi
 			);
 		return;
+	case IRQ_OFFSET+IRQ_TIMER:
+		sched_yield();
+		return;
 	}
  	// Handle clock and serial interrupts.
  	// LAB 4: Your code here.
@@ -205,7 +208,7 @@ page_fault_handler(struct Trapframe *tf)
 	
 	// LAB 3: Your code here.
 	if((tf->tf_cs & 3) == 0){
-		panic("Page fault in Kernel!\n");
+		panic("Page fault in Kernel: %08x!\n",fault_va);
 	}
 
 	// We've already handled kernel-mode exceptions, so if we get here,
@@ -246,7 +249,7 @@ page_fault_handler(struct Trapframe *tf)
 			utf = (struct UTrapframe *)((void *)UXSTACKTOP - sizeof(struct UTrapframe));
 		}
 	// 2. if exists, user_mem_assert the UTrapframe
-		user_mem_assert(curenv,utf,sizeof(struct UTrapframe)+1,PTE_P|PTE_U|PTE_W);
+		user_mem_assert(curenv,utf,sizeof(struct UTrapframe),PTE_P|PTE_U|PTE_W);
 	// 3. on success, puch a dword
 	// 4. push the UTrapframe
 		utf->utf_fault_va = fault_va;

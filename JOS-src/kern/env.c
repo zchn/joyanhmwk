@@ -186,6 +186,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
+	e->env_tf.tf_eflags |= FL_IF;
 
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
@@ -217,8 +218,8 @@ segment_alloc(struct Env *e, void *va, size_t len)
 	// Hint: It is easier to use segment_alloc if the caller can pass
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round len up.
-	void *a_va = va - PGOFF(va);
-	size_t a_len = PGOFF(len) == 0 ? len:len+PGSIZE-PGOFF(len+PGSIZE);
+	void *a_va = ROUNDDOWN(va,PGSIZE);
+	size_t a_len = ROUNDUP(len,PGSIZE);
 	int i,r;
 	struct Page *p = NULL;
 
@@ -226,8 +227,11 @@ segment_alloc(struct Env *e, void *va, size_t len)
 		if ((r = page_alloc(&p)) < 0){
 			panic("In segmant_alloc:%e",r);
 		}
-		page_insert(e->env_pgdir,p,a_va+i*PGSIZE,
-				PTE_P|PTE_W|PTE_U);
+		int ret;
+		if((ret = page_insert(e->env_pgdir,p,a_va+i*PGSIZE,
+				PTE_P|PTE_W|PTE_U)) < 0){
+			panic("Segment alloc failted");
+		}
 		p = NULL;
 	}
 	return;
@@ -471,8 +475,8 @@ env_run(struct Env *e)
 	if(curenv != e){
 		curenv = e;
 		e->env_runs++;
-		lcr3(e->env_cr3);
 	}
+	lcr3(e->env_cr3);
 //	cprintf("DEBUG: I'm going to invoke env_pop_tf\n");
 	env_pop_tf(&(e->env_tf));
 
