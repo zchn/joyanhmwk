@@ -126,7 +126,7 @@ fork(void)
 		// The copied value of the global variable 'env'
 		// is no longer valid (it refers to the parent!).
 		// Fix it and return 0.
-		env = &envs[ENVX(sys_getenvid())];
+		//env = &envs[ENVX(sys_getenvid())];
 		return 0;
 	}
 	// We're the parent.
@@ -167,6 +167,59 @@ fork(void)
 int
 sfork(void)
 {
-	panic("sfork not implemented");
-	return -E_INVAL;
+	//panic("sfork not implemented");
+	//return -E_INVAL;
+	envid_t envid;
+	uint8_t *addr;
+	int r;
+	extern unsigned char end[];
+	set_pgfault_handler(pgfault);
+	envid = sys_exofork();
+	if (envid < 0)
+		panic("sys_exofork: %e", envid);
+	if (envid == 0) {
+		// We're the child.
+		// The copied value of the global variable 'env'
+		// is no longer valid (it refers to the parent!).
+		// Fix it and return 0.
+		//env = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
+	// We're the parent.
+	int i,j;
+	for(i=0; i*PTSIZE < UTOP; i++) {
+		if(((pte_t *)vpd)[i] & PTE_P) {
+			//cprintf("\n\nmapping %08x",i*PTSIZE);
+			for(j=0; i*PTSIZE + j*PGSIZE < UTOP && j < NPTENTRIES; j++) {
+				if(i*PTSIZE + j*PGSIZE == UXSTACKTOP-PGSIZE){
+					continue;
+				}
+				// Copy mapping if necessary
+				pte_t pte = ((pte_t *)vpt)[i*NPTENTRIES + j];
+				if( (pte & PTE_P) && (pte & PTE_U)){
+					if(i*PTSIZE + j*PGSIZE == USTACKTOP-PGSIZE){
+						duppage(envid, i*NPTENTRIES + j);
+					}else{
+						sys_page_map(0, (void *)(i*PTSIZE + j*PGSIZE), 
+							envid, (void *)(i*PTSIZE + j*PGSIZE), 
+							PGOFF(pte) & (PTE_P|PTE_U|PTE_W|PTE_AVAIL));
+					}
+				}
+			}
+		}
+	} 
+
+	if((r = sys_page_alloc(envid, (void *)UXSTACKTOP-PGSIZE, PTE_P|PTE_U|PTE_W))< 0){
+		panic("sys_page_alloc: %e", r);
+	}
+
+	// Also copy the stack we are currently running on.
+
+	// Start the child environment running
+	extern void _pgfault_upcall(void);
+	sys_env_set_pgfault_upcall(envid,_pgfault_upcall);
+	if ((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)
+		panic("sys_env_set_status: %e", r);
+
+	return envid;
 }
