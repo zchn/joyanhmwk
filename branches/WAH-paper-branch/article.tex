@@ -16,7 +16,6 @@
                                 %中英文显示问题
 \usepackage{indentfirst}%用于首行缩进
 \usepackage[width=500pt]{geometry}%用于设置页面大小
-\usepackage{listings}%用于提供lstlisting代码显示环境
 \usepackage[dvipdfm]{graphicx}
 \usepackage[usenames,dvipsnames]{color}
 \usepackage{xcolor}
@@ -112,72 +111,235 @@
 
 
 \begin{document}
-%  ABAP (R/2 4.3, R/2 5.0, R/3 3.1, R/3 4.6C, R/3 6.10)
-% ACSL                               Ada (83, 95)
-% Algol (60, 68)                     Assembler (x86masm)
-% Basic (Visual)                     C (ANSI, Objective, Sharp)
-% C++ (ANSI, GNU, ISO, Visual)       Caml (light, Objective)
-% Clean                              Cobol (1974, 1985, ibm)
-% Comal 80                           csh
-% Delphi                             Eiffel
-% Elan                               erlang
-% Euphoria                           Fortran (77, 90, 95)
-% GCL                                Haskell
-% HTML                               IDL (empty, CORBA)
-% Java (empty, AspectJ)              ksh
-% Lisp (empty, Auto)                 Logo
-% make (empty, gnu)                  Mathematica (1.0, 3.0)
-% Matlab                             Mercury
-% MetaPost                           Miranda
-% Mizar                              ML
-% Modula-2                           MuPAD
-% NASTRAN                            Oberon-2
-% OCL (decorative, OMG)              Octave
-% Pascal (Borland6, Standard, XSC)   Perl
-% PHP                                PL/I
-% POV                                Prolog
-% Python                             R
-% Reduce                             Ruby
-% S (empty, PLUS)                    SAS
-% Scilab                             SHELXL
-%                                    SQL
-% Simula (67, CII, DEC, IBM)
-% tcl (empty, tk)
-% TeX (AlLaTeX, common, LaTeX, plain, primitive)
-% VBScript                           Verilog
-% VHDL (empty, AMS)                  VRML (97)
-% XML
-\lstset{
-  language={[ANSI]C},
-  linewidth=0.8\textwidth{},
-  breaklines=true,
-  numbers=left,
-  numberstyle=\small{},
-  stepnumber=5,
-  numbersep=5pt,
-  columns=fullflexible,
-  basicstyle=\normalsize{}\ttfamily{},          % print whole listing small
-  backgroundcolor=\color{black!10!white},
-  frame=leftline,
-  emph={czj,joyan},
-  emphstyle=\color{blue}\bfseries,
-  keywordstyle=\color{blue}\bfseries,
-  identifierstyle=\color{black},           % nothing happens 
-  escapeinside=`',
-  commentstyle=\color{black}, % white comments
-  stringstyle=\ttfamily,      % typewriter type for strings
-  showstringspaces=false}     % no special string spaces
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%% 正文开始 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-\title{一个简单的\LaTeX{}模板}
-\author{陈志杰 \\ joyanlj@gmail.com}
-\date{Feb. 2009}
+\title{古罗马凯旋式和凯旋门}
+\author{陈志杰 \\ zhijiechn@gmail.com}
+\date{May. 2009}
 
 \maketitle
-  
-\section{主要数据结构}
+
+\tableofcontents
+
+\section{绪论（总括凯旋门）}
+
+门，是人们在日常生活中再熟悉不过的一类建筑，一般来说，只要存在两个世界
+的分隔，只要不是完全隔绝，总会有门的存在，门的存在，连接了两个不同世界。
+基于门的以上用途，人们给门赋予了许多象征的意义，如门本身预示着一个新的
+环境即将到来，代表新的开始和新的纪元；从门內经过，代表着一个世界或者事
+件的终结，也预示着新的世界或者事件的开始\textbf{CITATION NEEDED}；不仅
+如此，从门内经过，还被世界各地的人们用来进行各种仪式，如中国古代的皇
+帝，每次出城围猎，往往在城门周围聚集着各种各样的人，围猎的队伍也是在经
+过城门的时候走的最``雄赳赳气昂昂''；其他的各种出发仪式和归来仪式也大都
+是围绕着门来进行的。在所有这些门和有关门的仪式中，最为庄严雄伟的，当数
+古罗马人的凯旋门和凯旋式。
+
+\section{古罗马凯旋式}
+
+说到古罗马凯旋门，就不得不先提一下古罗马的凯旋式。罗马凯旋式(The Roman
+triumph, or triumphus)\textbf{C.N.}，是古罗马文明的一项重要的与宗教有关
+的仪式。关于这项仪式的起源，目前史学界还有许多争议，本文也暂不讨论，但
+是其目的则是比较明确的：用来纪念某个帝王及其军队在重要战争中的胜利，也
+同时纪念某一个战争的结束。这种纪念仪式
+
+\textbf{TO BE CONTINUED,查阅中文wiki凯旋式，弄清楚凯旋门是在什么地方用
+  到。}
+
+\section{凯旋门总述}
+
+\textbf{查阅中文wiki，将以下文字准确翻译成中文}.
+
+A triumphal arch is a structure in the shape of a monumental archway,
+in theory built to celebrate a victory in war, actually used to
+celebrate a ruler.
+
+Roman classical triumphal arch was a free-standing structure, quite
+separate from city gates or walls, but the form is often used in
+engaged arches as well. In its simplest form a triumphal arch consists
+of two massive piers connected by an arch, crowned with a flat
+superstructure or attic on which a statue might be mounted or which
+bears commemorative inscriptions. The structure should be decorated
+with carvings, notably including "Victories", winged female figures
+(very similar to angels), a pair of which typically occupy the curved
+triangles beside the top of the arch curve. More elaborate triumphal
+arches have flanking subsidiary archways, typically a pair.
+
+The rhythmic ABA motif—of central arched void flanked by smaller
+ones—was adapted in Classical architecture, particularly since the
+Renaissance, to articulate the walls of structures. The voids may take
+the form of niches or be "blind", with masonry continuous behind.
+
+
+
+\subsection{凯旋门的用途}
+
+\subsection{凯旋门的结构}
+
+\subsection{凯旋门的复用}
+
+\section{古罗马凯旋门}
+
+The tradition dates back to ancient Rome and is connected to the
+Senate's custom of granting Roman triumphs. Surprisingly little is
+known about how the Romans used triumphal arches; the only ancient
+author who discussed them was Pliny the Elder, writing in the first
+century AD. They are not mentioned at all by Vitruvius, the first
+century BC writer on Roman architecture. Pliny describes them as being
+honorary monuments of unusual importance, erected to commemorate
+triumphs. By the second century arches were being erected to
+commemorate other events, such as the surviving triumphal arch at
+Ancona, erected by a grateful city to commemorate Trajan's
+improvements to the harbor.
+
+It is unclear when the Romans first began erecting triumphal arches.
+They originated some time during the Roman Republican era, during
+which time three were erected in Rome, the earliest being one to
+Lucius Stertinius built in 196 BC. These appear to have been temporary
+structures, and none now survive. Most triumphal arches were built
+during the Roman Empire. By the fourth century, thirty-six triumphal
+arches can be traced in Rome. Only five now survive (see list below).
+
+The arches of Rome became increasingly elaborate over the centuries.
+They were at first very simple symbolic temporary gateways to the
+city, being built of brick or stone with a semicircular arched heading
+and hung with trophies of captured arms. Later arches were built of
+high-quality marble with a large central arch in the middle, its
+ceiling treated as a barrel vault, and sometimes two smaller ones on
+each side, adorned with a complete Architectural order, of columns and
+entablature, enriched with symbolic or narrative bas-reliefs and
+crowned with bronze statues, often a quadriga. The festive Corinthian
+order was the usual one.
+
+\subsection{古罗马是凯旋门的全盛时期}
+By the fourth century, thirty-six triumphal arches can be traced in
+Rome. Only five now survive (see list below).
+\subsection{古罗马凯旋门的兴起}
+
+\textbf{Arc d’Arcadius, Honorius et Théodose 405 BC}
+
+\textbf{Arc de Scipion l'Africain 109 BC}
+
+\subsection{奥古斯都凯旋门(Aosta) 35 BC}
+
+Outside the town is a triumphal arch in honour of Augustus, built in
+35 BC to celebrate the victory of consul Varro Murena over the
+Salassi. About 8 km to the west is a single-arched Roman bridge,
+called the Pont d'Aël. It has a closed passage, lighted by windows for
+foot passengers in winter, and above it an open footpath, both being
+about 10 m in width.
+
+\subsection{奥古斯都凯旋门(Fano)}
+
+\subsection{奥古斯都凯旋门(罗马) 29 BC}
+
+\subsection{奥古斯都凯旋门(Rimini) 27 BC}
+
+\subsection{Pont Flavien(Bridge) 12 BC}
+\label{sec:pont-flav-12}
+
+\subsection{Arch of Drusus 9 BC}
+\label{sec:arch-drusus-9}
+
+\textbf{Arc de Lentulus et Crispinus 2 AD}
+
+\textbf{Arc de Dolabella et Silanus 10 AD}
+
+\textbf{Arcs de Tibère 16 AD}
+
+\subsection{Arch of Germanicus 18/19 AD}
+\label{sec:arch-germanicus-1819}
+
+这个就是Arcs de Drusus et Germanicus吧？两个门一样大？
+
+\textbf{Arch of Drusus 23 AD}
+
+\subsection{Triumphal Arch of Orange 27 AD}
+\label{sec:triumph-arch-orange}
+
+\subsection{Arch of Claudius 46-51 AD}
+
+\textbf{Arc de Néron 58-62 AD}
+
+\subsection{Arch of Titus 81 AD}
+
+\subsection{Arch of Hadrian 131-132 AD}
+\label{sec:arch-hadrian-131}
+
+\textbf{Arc de Marc Aurèle 176 AD}
+
+\subsection{Arch of Septimius Severus (Roman Forum) 203 AD}
+\label{sec:arch-sept-sever}
+
+\textbf{Arc de Septime Sévère (forum Boarium) 204 AD}
+
+\subsection{Arch of Gallienus 262 AD}
+\label{sec:arch-gallienus-262}
+
+\subsection{Arch of Galerius 298-303 CE}
+\label{sec:arch-galerius-298}
+
+\subsection{Arch of Constantine 315 AD}
+
+\textbf{Arc du divin Constantin Arc de Janus quadrifrons 356 AD}
+
+\textbf{Arc de Gratien, Valentinien et Théodose 379-383 AD}
+
+
+\subsection{特洛伊拱门 114-115}
+
+\subsection{Golden Gate ???}
+\label{sec:golden-gate-}
+
+\subsection{The triumphal arch of Glanum ???}
+\label{sec:triumph-arch-glan}
+
+
+
+\subsection{古罗马中期凯旋门}
+
+\subsection{古罗马凯旋门的顶峰}
+
+\section{后凯旋门时代}
+
+Triumphal arches in the Roman style were revived during the
+Renaissance, when there was a Europe-wide upswelling of interest in
+the art and architecture of ancient Rome. Between the 15th and 19th
+century, kings and emperors erected numerous triumphal arches in
+conscious imitation of the Roman tradition. One of the earliest was
+the "Aragonese Arch" at the Castel Nuovo in Naples, erected by Alfonso
+V in 1443, although like the later Porta Capuana this was engaged as
+part of the entrance to the castle. Temporary examples were erected in
+enormous numbers for festivities such as Royal Entries from the late
+Middle Ages onwards. The Emperor Maximilian I commissioned the artist
+Albrecht Dürer to design an elaborately decorated monumental arch in
+woodcut for him (3.75 metres high, in 192 different sheets), which was
+never intended to be built, but was printed in an edition of 700
+copies and distributed to be coloured and pasted on the walls of large
+rooms. Louis XIV of France and Napoleon Bonaparte both erected arches
+to commemorate their military triumphs, most famously the Arc de
+Triomphe in Paris. Arches were erected for similar purposes in the
+U.K., the United States, Germany, Romania, Russia and Spain, amongst
+other countries. Built to honour and glorify President Kim Il Sung and
+modeled after the Arc de Triomphe in Paris, the Arch of Triumph in
+Pyongyang is the largest triumphal arch in the world (although the
+Grande Arche at La Défense near Paris is much larger, it is not a
+triumphal arch). A far larger arch was planned for Berlin by Adolf
+Hitler and his architect Albert Speer, but construction was never
+begun.
+
+Temporary triumphal arches are still constructed, intended to be used
+for a celebratory parade or ceremony and then be dismantled
+afterwards.
+
+The term triumphal arch is also often used of the arch separating the
+nave from the apse of a church in basilica form, often decorated with
+mosaics or paintings.
+
+
+
+\section{总结：凯旋门的价值及其对现代建筑的影响}
 
 \appendix{}
 
