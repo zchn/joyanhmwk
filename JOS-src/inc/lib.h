@@ -86,4 +86,6 @@ envid_t	sfork(void);	// Challenge!
 #define	O_EXCL		0x0400		/* error if already exists */
 #define O_MKDIR		0x0800		/* create directory, not regular file */
 
+#define env (&envs[ENVX(sys_getenvid())])
+
 #endif	// !JOS_INC_LIB_H

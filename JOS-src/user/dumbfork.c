@@ -58,7 +58,7 @@ dumbfork(void)
 		// The copied value of the global variable 'env'
 		// is no longer valid (it refers to the parent!).
 		// Fix it and return 0.
-		env = &envs[ENVX(sys_getenvid())];
+		//env = &envs[ENVX(sys_getenvid())];
 		return 0;
 	}
 
