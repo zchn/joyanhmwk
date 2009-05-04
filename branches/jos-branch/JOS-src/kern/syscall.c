@@ -411,10 +411,10 @@ sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
 	//panic("sys_ipc_recv not implemented");
-	curenv->env_ipc_recving = 1;
 	if(PGOFF(dstva) != 0){
 		return -E_INVAL;
 	}
+	curenv->env_ipc_recving = 1;
 	curenv->env_ipc_dstva = dstva;
 	curenv->env_status = ENV_NOT_RUNNABLE;
 	curenv->env_tf.tf_regs.reg_eax = 0;
