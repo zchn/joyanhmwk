@@ -52,9 +52,7 @@ i386_init(void)
 	ENV_CREATE2(TEST, TESTSIZE);
 #else
 	// Touch all you want.
-	ENV_CREATE(user_fairness);
-	ENV_CREATE(user_fairness);
-	ENV_CREATE(user_fairness);
+	ENV_CREATE(user_idle);
 #endif // TEST*
 
  	// Schedule and run the first user environment!
