@@ -14,7 +14,7 @@ umain(void)
 	// to cause the processor to stop executing until the next interrupt -
 	// doing so allows the processor to conserve power more effectively.
 	while (1) {
-		sys_yield();
+		//sys_yield();
 
 		// Break into the JOS kernel monitor after each sys_yield().
 		// A real, "production" OS of course would NOT do this -
@@ -24,7 +24,7 @@ umain(void)
 		// if we invoke the kernel monitor after each iteration,
 		// because the first invocation of the idle environment
 		// usually means everything else has run to completion.
-		breakpoint();
+		//breakpoint();
 	}
 }
 
