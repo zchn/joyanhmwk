@@ -16,59 +16,138 @@ static int init_stack(envid_t child, const char **argv, uintptr_t *init_esp);
 int
 spawn(const char *prog, const char **argv)
 {
-	unsigned char elf_buf[512];
+	unsigned char elfbuf[512];
 	struct Trapframe child_tf;
 	envid_t child;
-
+        int r;
+        
 	// Insert your code, following approximately this procedure:
 	//
 	//   - Open the program file.
+        int fd;
+        if((fd = open(prog,O_RDONLY)) < 0){
+                return fd;
+        }
 	//
 	//   - Read the ELF header, as you have before, and sanity check its
 	//     magic number.  (Check out your load_icode!)
+        struct Proghdr *ph, *eph;
+        read(fd,elfbuf,512);
+        struct Elf *elfbin = (struct Elf *)elfbuf;
+	if (elfbin->e_magic != ELF_MAGIC)
+		return -E_INVAL;
+	// load each program segment (ignores ph flags)
+	ph = (struct Proghdr *) ((uint8_t *) elfbin + elfbin->e_phoff);
+	eph = ph + elfbin->e_phnum;
+
 	//
 	//   - Use sys_exofork() to create a new environment.
+        child = sys_exofork();
+	if (child < 0)
+		panic("sys_exofork: %e", child);
+	if (child == 0) {
+		// We're the child.
+		// The copied value of the global variable 'env'
+		// is no longer valid (it refers to the parent!).
+		// Fix it and return 0.
+		//env = &envs[ENVX(sys_getenvid())];
+		return 0;
+	}
+	// We're the parent.
+
 	//
 	//   - Set child_tf to an initial struct Trapframe for the child.
 	//     Hint: The sys_exofork() system call has already created
 	//     a good basis, in envs[ENVX(child)].env_tf.
 	//     Hint: You must do something with the program's entry point.
 	//     What?  (See load_icode!)
+        struct Trapframe tf;
+        tf = envs[ENVX(child)].env_tf;
+        tf.tf_eip = elfbin->e_entry;
+
 	//
 	//   - Call the init_stack() function above to set up
 	//     the initial stack page for the child environment.
 	//
-	//   - Map all of the program's segments that are of p_type
+        if((r = init_stack(child,argv,&(tf.tf_esp))) < 0){
+                goto fail;
+        }
+        //   - Map all of the program's segments that are of p_type
 	//     ELF_PROG_LOAD into the new environment's address space.
 	//     Use the p_flags field in the Proghdr for each segment
 	//     to determine how to map the segment:
 	//
-	//	* If the ELF flags do not include ELF_PROG_FLAG_WRITE,
-	//	  then the segment contains text and read-only data.
-	//	  Use read_map() to read the contents of this segment,
-	//	  and map the pages it returns directly into the child
-	//        so that multiple instances of the same program
-	//	  will share the same copy of the program text.
-	//        Be sure to map the program text read-only in the child.
-	//        Read_map is like read but returns a pointer to the data in
-	//        *blk rather than copying the data into another buffer.
-	//
-	//	* If the ELF segment flags DO include ELF_PROG_FLAG_WRITE,
-	//	  then the segment contains read/write data and bss.
-	//	  As with load_icode() in Lab 3, such an ELF segment
-	//	  occupies p_memsz bytes in memory, but only the FIRST
-	//	  p_filesz bytes of the segment are actually loaded
-	//	  from the executable file - you must clear the rest to zero.
-	//        For each page to be mapped for a read/write segment,
-	//        allocate a page in the parent temporarily at UTEMP,
-	//        read() the appropriate portion of the file into that page
-	//	  and/or use memset() to zero non-loaded portions.
-	//	  (You can avoid calling memset(), if you like, if
-	//	  page_alloc() returns zeroed pages already.)
-	//        Then insert the page mapping into the child.
-	//        Look at init_stack() for inspiration.
-	//        Be sure you understand why you can't use read_map() here.
-	//
+	for (; ph < eph; ph++){
+		if(ph->p_type != ELF_PROG_LOAD){
+			continue;
+		}
+		assert(ph->p_filesz <= ph->p_memsz);
+                if((ph->p_flags & ELF_PROG_FLAG_WRITE) == 0){
+                        //	* If the ELF flags do not include ELF_PROG_FLAG_WRITE,
+                        //	  then the segment contains text and read-only data.
+                        //	  Use read_map() to read the contents of this segment,
+                        //	  and map the pages it returns directly into the child
+                        //        so that multiple instances of the same program
+                        //	  will share the same copy of the program text.
+                        //        Be sure to map the program text read-only in the child.
+                        //        Read_map is like read but returns a pointer to the data in
+                        //        *blk rather than copying the data into another buffer.
+                        //
+                        uint32_t i;
+                        for(i = ROUNDDOWN(ph->p_offset,PGSIZE); i < ROUNDUP(ph->p_offset+ph->p_memsz,PGSIZE); i+= PGSIZE){
+                                char *blk;
+                                if((r = read_map(fd,i,(void **)&blk)) < 0){
+                                        goto fail;
+                                }
+                                void *dstva = (void *)(ROUNDDOWN(ph->p_va,PGSIZE)+i-ROUNDDOWN(ph->p_offset,PGSIZE));
+                                if((r = sys_page_map(0,blk,child,dstva,PTE_P|PTE_U)) < 0){
+                                        goto fail;
+                                }
+                        }
+                }else{
+                        //	* If the ELF segment flags DO include ELF_PROG_FLAG_WRITE,
+                        //	  then the segment contains read/write data and bss.
+                        //	  As with load_icode() in Lab 3, such an ELF segment
+                        //	  occupies p_memsz bytes in memory, but only the FIRST
+                        //	  p_filesz bytes of the segment are actually loaded
+                        //	  from the executable file - you must clear the rest to zero.
+                        //        For each page to be mapped for a read/write segment,
+                        //        allocate a page in the parent temporarily at UTEMP,
+                        //        read() the appropriate portion of the file into that page
+                        //	  and/or use memset() to zero non-loaded portions.
+                        //	  (You can avoid calling memset(), if you like, if
+                        //	  page_alloc() returns zeroed pages already.)
+                        //        Then insert the page mapping into the child.
+                        //        Look at init_stack() for inspiration.
+                        //        Be sure you understand why you can't use read_map() here.
+                        //
+                        uint32_t i;
+                        for(i = ROUNDDOWN(ph->p_offset,PGSIZE); i < ROUNDUP(ph->p_offset+ph->p_memsz,PGSIZE); i+= PGSIZE){
+                                char *blk;
+                                if((r = read_map(fd,i,(void **)&blk)) < 0){
+                                        goto fail;
+                                }
+                                if((r = sys_page_alloc(0,UTEMP,PTE_P|PTE_U|PTE_W)) < 0){
+                                        goto fail;
+                                }
+                                if(i < ROUNDDOWN(ph->p_offset+ph->p_filesz,PGSIZE)){
+                                        memmove(UTEMP,blk,PGSIZE);
+                                }else if(i == ROUNDDOWN(ph->p_offset+ph->p_filesz,PGSIZE)){
+                                        memmove(UTEMP,blk,PGSIZE);
+                                        memset((void *)(UTEMP+PGOFF(ph->p_va+ph->p_filesz)),0,PGSIZE-PGOFF(ph->p_va+ph->p_filesz));
+                                }else{
+                                        memset(UTEMP,0,PGSIZE);
+                                }
+                                void *dstva = (void *)(ROUNDDOWN(ph->p_va,PGSIZE)+i-ROUNDDOWN(ph->p_offset,PGSIZE));
+                                if((r = sys_page_map(0,UTEMP,child,dstva,PTE_P|PTE_U|PTE_W)) < 0){
+                                        goto fail;
+                                }
+                                if((r = sys_page_unmap(0,UTEMP)) < 0){
+                                        goto fail;
+                                }
+                        }
+                }
+        }
 	//     Note: None of the segment addresses or lengths above
 	//     are guaranteed to be page-aligned, so you must deal with
 	//     these non-page-aligned values appropriately.
@@ -78,13 +157,27 @@ spawn(const char *prog, const char **argv)
 	//
 	//   - Call sys_env_set_trapframe(child, &child_tf) to set up the
 	//     correct initial eip and esp values in the child.
+
+        if((r = sys_env_set_trapframe(child, &tf)) < 0){
+                sys_env_destroy(child);
+                return r;
+        }
+
 	//
 	//   - Start the child process running with sys_env_set_status().
+        if((r = sys_env_set_status(child,ENV_RUNNABLE)) < 0){
+                sys_env_destroy(child);
+                return r;
+        }
 
 	// LAB 5: Your code here.
-	
-	(void) child;
-	panic("spawn unimplemented!");
+	//panic("spawn unimplemented!");
+        return 0;
+
+fail:
+        sys_env_destroy(child);
+        return r;
+
 }
 
 // Spawn, taking command-line arguments array directly on the stack.
@@ -141,7 +234,12 @@ init_stack(envid_t child, const char **argv, uintptr_t *init_esp)
 	//	  for all 0 <= i < argc.
 	//	  Also, copy the argument strings from 'argv' into the
 	//	  newly-allocated stack page.
+        for(i = 0; i < argc; i++){
 	//	  Hint: Copy the argument strings into string_store.
+                argv_store[i] = UTEMP2USTACK(string_store);
+                strcpy(string_store,argv[i]);
+                string_store += strlen(argv[i])+1;
+        }
 	//	  Hint: Make sure that argv_store uses addresses valid in the
 	//	  CHILD'S environment!  The string_store variable itself
 	//	  points into page UTEMP, but the child environment will have
@@ -149,6 +247,7 @@ init_stack(envid_t child, const char **argv, uintptr_t *init_esp)
 	//	  UTEMP2USTACK macro defined above.
 	//
 	//	* Set 'argv_store[argc]' to 0 to null-terminate the args array.
+        argv_store[argc] = 0;
 	//
 	//	* Push two more words onto the child's stack below 'args',
 	//	  containing the argc and argv parameters to be passed
@@ -157,11 +256,13 @@ init_stack(envid_t child, const char **argv, uintptr_t *init_esp)
 	//	  (Again, argv should use an address valid in the child's
 	//	  environment.)
 	//
+        argv_store[-1] = UTEMP2USTACK(argv_store);
+        argv_store[-2] = argc;
 	//	* Set *init_esp to the initial stack pointer for the child,
 	//	  (Again, use an address valid in the child's environment.)
 	//
 	// LAB 5: Your code here.
-	*init_esp = USTACKTOP;	// Change this!
+	*init_esp = UTEMP2USTACK(argv_store-2);	// Change this!
 
 	// After completing the stack, map it into the child's address space
 	// and unmap it from ours!

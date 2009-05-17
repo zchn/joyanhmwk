@@ -206,7 +206,25 @@ serve_map(envid_t envid, struct Fsreq_map *rq)
 	// (see the O_ flags in inc/lib.h).
 	
 	// LAB 5: Your code here.
-	panic("serve_map not implemented");
+	//panic("serve_map not implemented");
+        // First, use openfile_lookup to find the relevant open file.
+	// On failure, return the error code to the client with ipc_send.
+	if ((r = openfile_lookup(envid, rq->req_fileid, &o)) < 0){
+		goto out;
+        }
+
+	// Second, call the relevant file system function (from fs/fs.c).
+	// On failure, return the error code to the client.
+	if ((r = file_get_block(o->o_file, rq->req_offset/BLKSIZE,&blk)) < 0){
+		goto out;
+        }
+	ipc_send(envid, 0, blk, PTE_P|PTE_U|PTE_SHARE|(o->o_mode == O_RDONLY?0:PTE_W));
+        return;
+	// Finally, return to the client!
+	// (We just return r since we know it's 0 at this point.)
+out:
+	ipc_send(envid, r, 0, 0);
+
 }
 
 void
@@ -221,7 +239,21 @@ serve_close(envid_t envid, struct Fsreq_close *rq)
 	// Close the file.
 	
 	// LAB 5: Your code here.
-	panic("serve_close not implemented");
+	//panic("serve_close not implemented");
+        // First, use openfile_lookup to find the relevant open file.
+	// On failure, return the error code to the client with ipc_send.
+	if ((r = openfile_lookup(envid, rq->req_fileid, &o)) < 0)
+		goto out;
+
+	// Second, call the relevant file system function (from fs/fs.c).
+	// On failure, return the error code to the client.
+        file_close(o->o_file);
+
+	// Finally, return to the client!
+	// (We just return r since we know it's 0 at this point.)
+out:
+	ipc_send(envid, r, 0, 0);
+
 }
 
 void
@@ -236,9 +268,14 @@ serve_remove(envid_t envid, struct Fsreq_remove *rq)
 	// Delete the named file.
 	// Note: This request doesn't refer to an open file.
 	// Hint: Make sure the path is null-terminated!
-
+        
 	// LAB 5: Your code here.
-	panic("serve_remove not implemented");
+	//panic("serve_remove not implemented");
+	// Copy in the path, making sure it's null-terminated
+	memmove(path, rq->req_path, MAXPATHLEN);
+	path[MAXPATHLEN-1] = 0;
+        r = file_remove(path);
+	ipc_send(envid, r, 0, 0);                
 }
 
 void
@@ -254,7 +291,13 @@ serve_dirty(envid_t envid, struct Fsreq_dirty *rq)
 	// Returns 0 on success, < 0 on error.
 	
 	// LAB 5: Your code here.
-	panic("serve_dirty not implemented");
+	//panic("serve_dirty not implemented");
+	if ((r = openfile_lookup(envid, rq->req_fileid, &o)) < 0)
+		goto out;
+        if((r = file_dirty(o->o_file, rq->req_offset)) < 0)
+                goto out;
+out:
+	ipc_send(envid, r, 0, 0);
 }
 
 void

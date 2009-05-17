@@ -26,6 +26,7 @@ sched_yield(void)
 	int i;
 	for(i = 1; i < NENV; i++){
 		if((envs+1+(curenv+i-envs-1)%(NENV-1))->env_status == ENV_RUNNABLE){
+                        //cprintf("[DEBUG] Env %08x chosen\n",(envs+1+(curenv+i-envs-1)%(NENV-1))->env_id);
 			env_run(envs+1+(curenv+i-envs-1)%(NENV-1));
 		}
 	} 

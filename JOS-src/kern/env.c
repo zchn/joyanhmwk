@@ -196,7 +196,12 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// If this is the file server (e == &envs[1]) give it I/O privileges.
 	// LAB 5: Your code here.
-
+        if(e == &envs[1]){
+                e->env_tf.tf_eflags |= FL_IOPL_3;
+        }else{
+                e->env_tf.tf_eflags |= FL_IOPL_0;
+        }
+        
 	// commit the allocation
 	LIST_REMOVE(e, env_link);
 	*newenv_store = e;
@@ -313,12 +318,6 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 		}
 		assert(ph->p_filesz <= ph->p_memsz);
 		segment_alloc(e,(void *)ph->p_va,ph->p_memsz);
-
-                //cprintf("DEBUG:%08x to %08x fs: %08x ms: %08x\n",
-                //        binary+ph->p_offset,
-                //        ph->p_va,
-                 //       ph->p_filesz,
-                 //       ph->p_memsz);
 
 		memmove((void *)ph->p_va,binary+ph->p_offset,ph->p_filesz);
 		memset((void *)ph->p_va+ph->p_filesz,0,ph->p_memsz-ph->p_filesz);
