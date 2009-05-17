@@ -21,7 +21,7 @@ fsipc(unsigned type, void *fsreq, void *dstva, int *perm)
 		cprintf("[%08x] fsipc %d %08x\n", env->env_id, type, fsipcbuf);
 
 	ipc_send(envs[1].env_id, type, fsreq, PTE_P | PTE_W | PTE_U);
-	return ipc_recv(&whom, dstva, perm);
+        return ipc_recv(&whom, dstva, perm);
 }
 
 // Send file-open request to the file server.

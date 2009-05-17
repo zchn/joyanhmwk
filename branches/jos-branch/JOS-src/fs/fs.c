@@ -75,7 +75,17 @@ read_block(uint32_t blockno, char **blk)
 		panic("reading free block %08x\n", blockno);
 
 	// LAB 5: Your code here.
-	panic("read_block not implemented");
+	//panic("read_block not implemented");
+        if((r = map_block(blockno)) < 0){
+                panic("map_block in read_block %e",r);
+        }
+        addr = diskaddr(blockno);
+        if((r = ide_read(blockno*BLKSECTS,addr,BLKSECTS)) < 0){
+                panic("ide_read in read_block %e",r);
+        }
+        if(blk != NULL){
+                *blk = addr;
+        }
 	return 0;
 }
 
@@ -93,7 +103,18 @@ write_block(uint32_t blockno)
 	
 	// Write the disk block and clear PTE_D.
 	// LAB 5: Your code here.
-	panic("write_block not implemented");
+	//panic("write_block not implemented");
+        int r;
+        addr = diskaddr(blockno);
+        if(va_is_dirty(addr) == 0){
+                return;
+        }
+        if((r = ide_write(blockno*BLKSECTS,addr,BLKSECTS)) < 0){
+                panic("ide_write in write_block:%e",r);
+        }
+        if((r = sys_page_map(0,addr,0,addr,vpt[PPN(addr)] & ~PTE_D & PTE_USER))<0){
+                panic("sys_page_map in write_block:%e",r);
+        }
 }
 
 // Make sure this block is unmapped.
@@ -142,7 +163,15 @@ int
 alloc_block_num(void)
 {
 	// LAB 5: Your code here.
-	panic("alloc_block_num not implemented");
+	//panic("alloc_block_num not implemented");
+        uint32_t i;
+        for(i = 2+super->s_nblocks/BLKBITSIZE; i < super->s_nblocks; i++){
+                if(block_is_free(i)){
+                        bitmap[i/32] &= ~(1<<(i%32));
+                        write_block(2+i/BLKBITSIZE);
+                        return i;
+                }
+        }
 	return -E_NO_DISK;
 }
 
@@ -211,8 +240,15 @@ read_bitmap(void)
 	// Hint: Use read_block.
 
 	// LAB 5: Your code here.
-	panic("read_bitmap not implemented");
-
+	//panic("read_bitmap not implemented");
+        bitmap = 0;
+        for(i = 0; i < ROUNDUP(super->s_nblocks,BLKBITSIZE)/BLKBITSIZE; i++){
+                if((r = read_block(2+i,0)) < 0){
+                        panic("read_block in read_bitmap : %e",r);
+                }
+        }
+        bitmap = (uint32_t *)diskaddr(2);
+        
 	// Make sure the reserved and root blocks are marked in-use.
 	assert(!block_is_free(0));
 	assert(!block_is_free(1));
@@ -220,7 +256,9 @@ read_bitmap(void)
 
 	// Make sure that the bitmap blocks are marked in-use.
 	// LAB 5: Your code here.
-
+        for(i = 0; i < ROUNDUP(super->s_nblocks,BLKBITSIZE)/BLKBITSIZE; i++){
+                assert(!block_is_free(2+i));
+        }
 	cprintf("read_bitmap is good\n");
 }
 
@@ -335,8 +373,9 @@ file_map_block(struct File *f, uint32_t filebno, uint32_t *diskbno, bool alloc)
 	int r;
 	uint32_t *ptr;
 
-	if ((r = file_block_walk(f, filebno, &ptr, alloc)) < 0)
+	if ((r = file_block_walk(f, filebno, &ptr, alloc)) < 0){
 		return r;
+        }
 	if (*ptr == 0) {
 		if (alloc == 0)
 			return -E_NOT_FOUND;
@@ -377,7 +416,13 @@ file_get_block(struct File *f, uint32_t filebno, char **blk)
 	// Read in the block, leaving the pointer in *blk.
 	// Hint: Use file_map_block and read_block.
 	// LAB 5: Your code here.
-	panic("file_get_block not implemented");
+	//panic("file_get_block not implemented");
+        if((r = file_map_block(f,filebno,&diskbno,1)) < 0){
+                return r;
+        }
+        if((r = read_block(diskbno,blk)) < 0){
+                return r;
+        }
 	return 0;
 }
 
@@ -546,7 +591,11 @@ file_open(const char *path, struct File **pf)
 {
 	// Hint: Use walk_path.
 	// LAB 5: Your code here.
-	panic("file_open not implemented");
+	//panic("file_open not implemented");
+        int r;
+        if((r = walk_path(path,NULL,pf,NULL)) < 0){
+                return r;
+        }
 	return 0;
 }
 
@@ -567,7 +616,18 @@ file_truncate_blocks(struct File *f, off_t newsize)
 
 	// Hint: Use file_clear_block and/or free_block.
 	// LAB 5: Your code here.
-	panic("file_truncate_blocks not implemented");
+	//panic("file_truncate_blocks not implemented");
+        old_nblocks = ROUNDUP(f->f_size,BLKSIZE)/BLKSIZE;
+        new_nblocks = ROUNDUP(newsize,BLKSIZE)/BLKSIZE;
+        for(bno = new_nblocks; bno < old_nblocks; bno ++){
+                if((r = file_clear_block(f,bno)) < 0){
+                        panic("shouldn't here in file_truncate_blocks:%e",r);
+                        return;
+                }
+        }
+        if(new_nblocks <= NDIRECT && old_nblocks > NDIRECT){
+                free_block(((uint32_t)(f->f_indirect)-DISKMAP)/BLKSIZE);
+        }
 }
 
 int
@@ -591,7 +651,23 @@ void
 file_flush(struct File *f)
 {
 	// LAB 5: Your code here.
-	panic("file_flush not implemented");
+	//panic("file_flush not implemented");
+        int r;
+        uint32_t diskbno;
+        uint32_t bno;
+        for(bno = 0; bno < ROUNDUP(f->f_size,BLKSIZE)/BLKSIZE; bno++){
+                r = file_map_block(f,bno,&diskbno,0);
+                if(r == -E_NOT_FOUND){
+                        continue;
+                }
+                if(r < 0){
+                        panic("shouldn't here in fileflush:%e",r);
+                }
+                if(block_is_dirty(diskbno)){
+                        write_block(diskbno);
+                }
+        }
+        return;
 }
 
 // Sync the entire file system.  A big hammer.

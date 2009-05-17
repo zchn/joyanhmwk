@@ -51,8 +51,20 @@ int
 fd_alloc(struct Fd **fd_store)
 {
 	// LAB 5: Your code here.
-
-	panic("fd_alloc not implemented");
+        int i;
+        int r;
+        for(i = 0; i < MAXFD; i++){
+                uint32_t addr = (uint32_t)INDEX2FD(i);
+                if((vpd[VPD(addr)] & PTE_P) &&
+                   (vpt[VPN(addr)] & PTE_P)){
+                        continue;
+                }else{
+                        *fd_store = (struct Fd *)addr;
+                        return 0;
+                }
+        }
+        *fd_store = 0;
+	//panic("fd_alloc not implemented");
 	return -E_MAX_OPEN;
 }
 
@@ -66,8 +78,15 @@ int
 fd_lookup(int fdnum, struct Fd **fd_store)
 {
 	// LAB 5: Your code here.
-
-	panic("fd_lookup not implemented");
+        if(fdnum < 0 || fdnum >= MAXFD){
+                return -E_INVAL;
+        }
+        uint32_t addr = (uint32_t)INDEX2FD(fdnum);
+        if((vpd[VPD(addr)] & PTE_P) && vpt[VPN(addr)] & PTE_P){
+                *fd_store = (struct Fd *)addr;
+                return 0;
+        }
+	//panic("fd_lookup not implemented");
 	return -E_INVAL;
 }
 

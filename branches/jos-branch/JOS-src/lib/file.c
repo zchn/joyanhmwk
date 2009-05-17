@@ -39,9 +39,21 @@ open(const char *path, int mode)
 	// Then map the file data (you may find fmap() helpful).
 	// Return the file descriptor index.
 	// If any step fails, use fd_close to free the file descriptor.
-
+        struct Fd * pfd;
+        int r;
+        if((r = fd_alloc(&pfd)) < 0){
+                return r;
+        }
+        if((r = fsipc_open(path,mode,pfd)) < 0){
+                return r;
+        }
+        if((r = fmap(pfd,0,pfd->fd_file.file.f_size)) < 0){
+                fsipc_close(pfd->fd_file.id);
+                return r;
+        }
+        return fd2num(pfd);
 	// LAB 5: Your code here.
-	panic("open() unimplemented!");
+	//panic("open() unimplemented!");
 }
 
 // Clean up a file-server file descriptor.
@@ -54,7 +66,15 @@ file_close(struct Fd *fd)
 	// (to free up its resources).
 
 	// LAB 5: Your code here.
-	panic("close() unimplemented!");
+	//panic("close() unimplemented!");
+        int r;
+        if ((r = funmap(fd, fd->fd_file.file.f_size, 0, 1)) < 0){
+                return r;
+        }
+        if ((r = fsipc_close(fd->fd_file.id)) < 0){
+                return r;
+        }
+        return 0;
 }
 
 // Read 'n' bytes from 'fd' at the current seek position into 'buf'.
