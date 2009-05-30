@@ -164,6 +164,23 @@ spawn(const char *prog, const char **argv)
                 return r;
         }
 
+        // By zht
+	uintptr_t va;
+	uint32_t pdex;
+	uint32_t ptex;
+	uint32_t pn;
+	for (pdex = PDX(0); pdex < PDX(UTOP); pdex++) {
+		if (vpd[pdex] & PTE_P) {
+			for ( ptex = 0; ptex < NPTENTRIES; ptex++) {
+				pn = (pdex << 10) + ptex;
+				if ((vpt[pn] & PTE_P) && (vpt[pn] & PTE_SHARE)) {
+					va = (uintptr_t) PGADDR(pdex, ptex, 0);
+					if ((r=sys_page_map(0, (void *) va, child, (void *) va, vpt[pn] & PTE_USER)) < 0)
+						return r;
+				}
+			}
+		}
+	}
 	//
 	//   - Start the child process running with sys_env_set_status().
         if((r = sys_env_set_status(child,ENV_RUNNABLE)) < 0){
@@ -173,7 +190,7 @@ spawn(const char *prog, const char **argv)
 
 	// LAB 5: Your code here.
 	//panic("spawn unimplemented!");
-        return 0;
+        return child;
 
 fail:
         sys_env_destroy(child);
