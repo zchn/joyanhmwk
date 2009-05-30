@@ -183,8 +183,6 @@ dup(int oldfdnum, int newfdnum)
 	ova = fd2data(oldfd);
 	nva = fd2data(newfd);
 
-	if ((r = sys_page_map(0, oldfd, 0, newfd, vpt[VPN(oldfd)] & PTE_USER)) < 0)
-		goto err;
 	if (vpd[PDX(ova)]) {
 		for (i = 0; i < PTSIZE; i += PGSIZE) {
 			pte = vpt[VPN(ova + i)];
@@ -195,6 +193,9 @@ dup(int oldfdnum, int newfdnum)
 			}
 		}
 	}
+	// change for avoid update race in lab6 exercise 5
+	if ((r = sys_page_map(0, oldfd, 0, newfd, vpt[VPN(oldfd)] & PTE_USER)) < 0)
+		goto err;
 
 	return newfdnum;
 
@@ -246,7 +247,6 @@ write(int fdnum, const void *buf, size_t n)
 	int r;
 	struct Dev *dev;
 	struct Fd *fd;
-
 	if ((r = fd_lookup(fdnum, &fd)) < 0
 	    || (r = dev_lookup(fd->fd_dev_id, &dev)) < 0)
 		return r;

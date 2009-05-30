@@ -90,8 +90,22 @@ _pipeisclosed(struct Fd *fd, struct Pipe *p)
 	// everybody left is what fd is.  So the other end of
 	// the pipe is closed.
 
-	panic("_pipeisclosed not implemented");
-	return 0;
+	//panic("_pipeisclosed not implemented");
+	int run_count1, run_count2;
+	int fd_ref, pipe_ref;
+	while (1) {
+		run_count1 = env->env_runs;
+		fd_ref = pageref(fd);
+		pipe_ref = pageref(p);
+		run_count2 = env->env_runs;
+
+		if (run_count1 == run_count2) {
+			if (fd_ref == pipe_ref)
+				return 1;
+			else
+				return 0;
+		}
+	}
 }
 
 int
@@ -120,8 +134,22 @@ piperead(struct Fd *fd, void *vbuf, size_t n, off_t offset)
 	// return 0.
 	// Use _pipeisclosed to check whether the pipe is closed.
 
-	panic("piperead not implemented");
-	return -E_INVAL;
+	//panic("piperead not implemented");
+	struct Pipe *p = (struct Pipe *) fd2data(fd);
+	int read_count = 0;
+
+	while (p->p_rpos >= p->p_wpos) {
+		if (_pipeisclosed(fd, p))
+			return 0;
+		sys_yield();
+	}
+
+	while ((p->p_rpos < p->p_wpos) && (read_count < n)) {
+		((char *)vbuf)[read_count++] = p->p_buf[(uint32_t)p->p_rpos % PIPEBUFSIZ];
+		p->p_rpos++;
+	}
+	return read_count;
+	/*return -E_INVAL;*/
 }
 
 static ssize_t
@@ -135,8 +163,23 @@ pipewrite(struct Fd *fd, const void *vbuf, size_t n, off_t offset)
 	// If the pipe is full and closed, return 0.
 	// Use _pipeisclosed to check whether the pipe is closed.
 
-	panic("pipewrite not implemented");
-	return -E_INVAL;
+	//panic("pipewrite not implemented");
+	struct Pipe *p = (struct Pipe *) fd2data(fd);
+	int write_count = 0;
+
+	while (write_count < n) {
+		while ((p->p_wpos-p->p_rpos) >= PIPEBUFSIZ) {
+			if (_pipeisclosed(fd, p))
+				return 0;
+			sys_yield();
+		}
+
+		p->p_buf[(uint32_t)p->p_wpos % PIPEBUFSIZ] = ((char *)vbuf)[write_count++];
+		p->p_wpos++;
+	}
+
+	return write_count;
+	/*return -E_INVAL;*/
 }
 
 static int
@@ -153,6 +196,11 @@ pipestat(struct Fd *fd, struct Stat *stat)
 static int
 pipeclose(struct Fd *fd)
 {
+	int r;
+
+	if ((r=sys_page_unmap(0, (void *) fd)) < 0)
+		return r;
+
 	return sys_page_unmap(0, fd2data(fd));
 }
 

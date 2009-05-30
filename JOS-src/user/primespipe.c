@@ -53,7 +53,7 @@ umain(void)
 	int i, id, p[2], r;
 
 	argv0 = "primespipe";
-
+        
 	if ((i=pipe(p)) < 0)
 		panic("pipe: %e", i);
 
@@ -72,5 +72,6 @@ umain(void)
 	for (i=2;; i++)
 		if ((r=write(p[1], &i, 4)) != 4)
 			panic("generator write: %d, %e", r, r >= 0 ? 0 : r);
+
 }
 

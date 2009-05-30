@@ -26,7 +26,7 @@
 
 // libos.c or entry.S
 extern char *binaryname;
-extern volatile struct Env *env;
+//extern volatile struct Env *env;
 extern volatile struct Env envs[NENV];
 extern volatile struct Page pages[];
 void	exit(void);
