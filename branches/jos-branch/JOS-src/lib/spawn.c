@@ -98,10 +98,12 @@ spawn(const char *prog, const char **argv)
                         for(i = ROUNDDOWN(ph->p_offset,PGSIZE); i < ROUNDUP(ph->p_offset+ph->p_memsz,PGSIZE); i+= PGSIZE){
                                 char *blk;
                                 if((r = read_map(fd,i,(void **)&blk)) < 0){
+                                        cprintf("DEBUG spawn ERROR here1\n");
                                         goto fail;
                                 }
                                 void *dstva = (void *)(ROUNDDOWN(ph->p_va,PGSIZE)+i-ROUNDDOWN(ph->p_offset,PGSIZE));
                                 if((r = sys_page_map(0,blk,child,dstva,PTE_P|PTE_U)) < 0){
+                                        cprintf("DEBUG spawn ERROR here2\n");
                                         goto fail;
                                 }
                         }
@@ -125,25 +127,31 @@ spawn(const char *prog, const char **argv)
                         uint32_t i;
                         for(i = ROUNDDOWN(ph->p_offset,PGSIZE); i < ROUNDUP(ph->p_offset+ph->p_memsz,PGSIZE); i+= PGSIZE){
                                 char *blk;
-                                if((r = read_map(fd,i,(void **)&blk)) < 0){
-                                        goto fail;
-                                }
                                 if((r = sys_page_alloc(0,UTEMP,PTE_P|PTE_U|PTE_W)) < 0){
+                                        cprintf("DEBUG spawn ERROR here4\n");
                                         goto fail;
                                 }
-                                if(i < ROUNDDOWN(ph->p_offset+ph->p_filesz,PGSIZE)){
-                                        memmove(UTEMP,blk,PGSIZE);
-                                }else if(i == ROUNDDOWN(ph->p_offset+ph->p_filesz,PGSIZE)){
-                                        memmove(UTEMP,blk,PGSIZE);
-                                        memset((void *)(UTEMP+PGOFF(ph->p_va+ph->p_filesz)),0,PGSIZE-PGOFF(ph->p_va+ph->p_filesz));
-                                }else{
+                                if(ph->p_filesz == 0 || i > ph->p_offset+ph->p_filesz){
                                         memset(UTEMP,0,PGSIZE);
+                                }else{
+                                        if((r = read_map(fd,i,(void **)&blk)) < 0){
+                                                cprintf("DEBUG spawn ERROR read_map(%d,%d(%x),%08x)\n",fd,i,i,(void **)&blk);
+                                                goto fail;
+                                        }
+                                        if(i < ROUNDDOWN(ph->p_offset+ph->p_filesz,PGSIZE)){
+                                                memmove(UTEMP,blk,PGSIZE);
+                                        }else if(i == ROUNDDOWN(ph->p_offset+ph->p_filesz,PGSIZE)){
+                                                memmove(UTEMP,blk,PGSIZE);
+                                                memset((void *)(UTEMP+PGOFF(ph->p_va+ph->p_filesz)),0,PGSIZE-PGOFF(ph->p_va+ph->p_filesz));
+                                        }
                                 }
                                 void *dstva = (void *)(ROUNDDOWN(ph->p_va,PGSIZE)+i-ROUNDDOWN(ph->p_offset,PGSIZE));
                                 if((r = sys_page_map(0,UTEMP,child,dstva,PTE_P|PTE_U|PTE_W)) < 0){
+                                        cprintf("DEBUG spawn ERROR here5\n");
                                         goto fail;
                                 }
                                 if((r = sys_page_unmap(0,UTEMP)) < 0){
+                                        cprintf("DEBUG spawn ERROR here6\n");                                        
                                         goto fail;
                                 }
                         }

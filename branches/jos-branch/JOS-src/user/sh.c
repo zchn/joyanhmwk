@@ -53,9 +53,15 @@ again:
 			// then check whether 'fd' is 0.
 			// If not, dup 'fd' onto file descriptor 0,
 			// then close the original 'fd'.
-			
+                        if((r = open(t, O_RDONLY)) < 0){
+                                panic("output: %e",r);
+                        }
+                        if(r != 0){
+                                dup(r,0);
+                                close(r);
+                        }
 			// LAB 5: Your code here.
-			panic("< redirection not implemented");
+//			panic("< redirection not implemented");
 			break;
 			
 		case '>':	// Output redirection
@@ -66,25 +72,38 @@ again:
 			}
 			// Open 't' for writing as file descriptor 1
 			// (which environments use as standard output).
+                        if((r = open(t, O_CREAT | O_WRONLY)) < 0){
+                                panic("output: %e",r);
+                        }
 			// We can't open a file onto a particular descriptor,
 			// so open the file as 'fd',
 			// then check whether 'fd' is 1.
 			// If not, dup 'fd' onto file descriptor 1,
 			// then close the original 'fd'.
-			
+                        if(r != 1){
+                                dup(r,1);
+                                close(r);
+                        }
 			// LAB 5: Your code here.
-			panic("> redirection not implemented");
+			//panic("> redirection not implemented");
 			break;
 			
 		case '|':	// Pipe
 			// Set up pipe redirection.
 			
 			// Allocate a pipe by calling 'pipe(p)'.
+                        if ((r = pipe(p)) < 0)
+                                panic("pipe: %e", r);
+
 			// Like the Unix version of pipe() (man 2 pipe),
 			// this function allocates two file descriptors;
 			// data written onto 'p[1]' can be read from 'p[0]'.
 			// Then fork.
-			// The child runs the right side of the pipe:
+                        if ((r = fork()) < 0)
+                                panic("fork: %e", r);
+                        
+                        if (r == 0) {
+                        // The child runs the right side of the pipe:
 			//	Use dup() to duplicate the read end of the pipe
 			//	(p[0]) onto file descriptor 0 (standard input).
 			//	Then close the pipe (both p[0] and p[1]).
@@ -92,6 +111,11 @@ again:
 			//	descriptor 0.)
 			//	Then 'goto again', to parse the rest of the
 			//	command line as a new command.
+                                dup(p[0],0);
+                                close(p[0]);
+                                close(p[1]);
+                                goto again;
+                        }else{
 			// The parent runs the left side of the pipe:
 			//	Set 'pipe_child' to the child env ID.
 			//	dup() the write end of the pipe onto
@@ -99,9 +123,14 @@ again:
 			//	Then close the pipe.
 			//	Then 'goto runit', to execute this piece of
 			//	the pipeline.
-
+                                pipe_child = r;
+                                dup(p[1],1);
+                                close(p[0]);
+                                close(p[1]);
+                                goto runit;
+                        }
 			// LAB 5: Your code here.
-			panic("| not implemented");
+			//panic("| not implemented");
 			break;
 
 		case 0:		// String is complete
@@ -308,7 +337,7 @@ umain(int argc, char **argv)
 		if ((r = fork()) < 0)
 			panic("fork: %e", r);
 		if (debug)
-			cprintf("FORK: %d\n", r);
+			cprintf("FORK: %x\n", r);
 		if (r == 0) {
 			runcmd(buf);
 			exit();

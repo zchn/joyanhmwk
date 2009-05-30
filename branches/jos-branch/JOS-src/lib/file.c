@@ -111,10 +111,12 @@ read_map(int fdnum, off_t offset, void **blk)
 	if (fd->fd_dev_id != devfile.dev_id)
 		return -E_INVAL;
 	va = fd2data(fd) + offset;
-	if (offset >= MAXFILESIZE)
+	if (offset >= MAXFILESIZE){
 		return -E_NO_DISK;
+        }
 	if (!(vpd[PDX(va)] & PTE_P) || !(vpt[VPN(va)] & PTE_P))
 		return -E_NO_DISK;
+        
 	*blk = (void*) va;
 	return 0;
 }
@@ -138,7 +140,7 @@ file_write(struct Fd *fd, const void *buf, size_t n, off_t offset)
 	}
 
 	// write the data
-	memmove(fd2data(fd) + offset, buf, n);
+        memmove(fd2data(fd) + offset, buf, n);
 	return n;
 }
 
@@ -172,6 +174,7 @@ file_trunc(struct Fd *fd, off_t newsize)
 		return r;
 	funmap(fd, oldsize, newsize, 0);
 
+                
 	return 0;
 }
 
@@ -188,7 +191,7 @@ fmap(struct Fd* fd, off_t oldsize, off_t newsize)
 	int r;
 
 	va = fd2data(fd);
-	for (i = ROUNDUP(oldsize, PGSIZE); i < newsize; i += PGSIZE) {
+	for (i = ROUNDUP(oldsize, PGSIZE); i <= ROUNDDOWN(newsize,PGSIZE); i += PGSIZE) {
 		if ((r = fsipc_map(fd->fd_file.id, i, va + i)) < 0) {
 			// unmap anything we may have mapped so far
 			funmap(fd, i, oldsize, 0);
@@ -215,13 +218,15 @@ funmap(struct Fd* fd, off_t oldsize, off_t newsize, bool dirty)
 		return 0;
 
 	ret = 0;
-	for (i = ROUNDUP(newsize, PGSIZE); i < oldsize; i += PGSIZE)
+	for (i = ROUNDUP(newsize, PGSIZE); i <= oldsize; i += PGSIZE)
 		if (vpt[VPN(va + i)] & PTE_P) {
 			if (dirty
 			    && (vpt[VPN(va + i)] & PTE_D)
-			    && (r = fsipc_dirty(fd->fd_file.id, i)) < 0)
+			    && (r = fsipc_dirty(fd->fd_file.id, i)) < 0){
 				ret = r;
-			sys_page_unmap(0, va + i);
+                        }
+                        sys_page_unmap(0, va + i);
+                        
 		}
   	return ret;
 }
