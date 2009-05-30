@@ -68,13 +68,17 @@ duppage(envid_t envid, unsigned pn)
 	//panic("duppage not implemented");
 	int ret;
 	pte_t p = ((pte_t *)vpt)[pn];
+        addr = (void *) (pn << PGSHIFT);
 	if((p & PTE_P) == 0){
 		panic("In duppage: p|PTE_P = 0\n");
 	}
 	if((p & PTE_U) == 0){
 		panic("In duppage: p |PTE_U = 0\n");
 	}
-	if((p & PTE_W) == 0 && (p & PTE_COW) == 0){
+        if (p & PTE_SHARE) {
+		if ((ret =sys_page_map(0, addr, envid, addr, p & PTE_USER)) < 0)
+			return ret;
+	}else if((p & PTE_W) == 0 && (p & PTE_COW) == 0){
 		if((ret = sys_page_map(0, (void *)(pn*PGSIZE),
 				 envid, (void *)(pn*PGSIZE), PTE_P | PTE_U )) < 0){
 			return ret;
