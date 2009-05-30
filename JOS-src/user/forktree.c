@@ -28,7 +28,6 @@ forktree(const char *cur)
 
 	forkchild(cur, '0');
 	forkchild(cur, '1');
-	
 }
 
 void
