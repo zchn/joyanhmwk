@@ -26,7 +26,7 @@ umain(void)
 		buf[i] = 0;
 		if (strcmp(buf, msg) == 0)
 			cprintf("\npipe read closed properly\n");
-		else
+                else
 			cprintf("\ngot %d bytes: %s\n", i, buf);
 		exit();
 	} else {

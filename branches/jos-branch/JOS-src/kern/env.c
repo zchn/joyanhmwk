@@ -227,7 +227,7 @@ segment_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round len up.
 	void *a_va = ROUNDDOWN(va,PGSIZE);
-	size_t a_len = ROUNDUP(len,PGSIZE);
+	size_t a_len = ROUNDUP(va+len,PGSIZE)-a_va;
 	int i,r;
 	struct Page *p = NULL;
 
@@ -318,7 +318,7 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 		}
 		assert(ph->p_filesz <= ph->p_memsz);
 		segment_alloc(e,(void *)ph->p_va,ph->p_memsz);
-
+                //cprintf("[%08x] DEBUG memmove(%08x, %08x, %d)\n",e->env_id,ph->p_va,binary+ph->p_offset,ph->p_filesz);
 		memmove((void *)ph->p_va,binary+ph->p_offset,ph->p_filesz);
 		memset((void *)ph->p_va+ph->p_filesz,0,ph->p_memsz-ph->p_filesz);
 	}

@@ -54,7 +54,7 @@ i386_init(void)
         ENV_CREATE2(TEST, TESTSIZE);
 #else
         // Touch all you want.
- 	ENV_CREATE(user_testpteshare);
+ 	ENV_CREATE(user_primespipe);
  	// ENV_CREATE(user_pipereadeof);
  	// ENV_CREATE(user_pipewriteeof);
 #endif
