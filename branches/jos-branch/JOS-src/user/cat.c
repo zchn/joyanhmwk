@@ -7,7 +7,11 @@ cat(int f, char *s)
 {
 	long n;
 	int r;
-
+        /* /\**\/ */
+        /* struct Fd *fds; */
+        /* fd_lookup(f, &fds); */
+        /* cprintf("DEBUG cat Size: %d\n",fds->fd_file.file.f_size); */
+        /* /\**\/ */
 	while ((n = read(f, buf, (long)sizeof(buf))) > 0)
 		if ((r = write(1, buf, n)) != n)
 			panic("write error copying %s: %e", s, r);

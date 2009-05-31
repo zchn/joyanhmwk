@@ -68,6 +68,11 @@ read_block(uint32_t blockno, char **blk)
 	int r;
 	char *addr;
 
+        if(block_is_mapped(blockno)){
+                *blk = diskaddr(blockno);
+                return 0;
+        }
+        
 	if (super && blockno >= super->s_nblocks)
 		panic("reading non-existent block %08x\n", blockno);
 
@@ -109,6 +114,7 @@ write_block(uint32_t blockno)
         if(va_is_dirty(addr) == 0){
                 return;
         }
+        //cprintf("DEBUG Wrote block %08x %d\n",addr,blockno);
         if((r = ide_write(blockno*BLKSECTS,addr,BLKSECTS)) < 0){
                 panic("ide_write in write_block:%e",r);
         }
