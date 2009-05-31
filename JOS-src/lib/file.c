@@ -225,8 +225,7 @@ funmap(struct Fd* fd, off_t oldsize, off_t newsize, bool dirty)
 			    && (r = fsipc_dirty(fd->fd_file.id, i)) < 0){
 				ret = r;
                         }
-                        sys_page_unmap(0, va + i);
-                        
+                        sys_page_unmap(0, va + i);                        
 		}
   	return ret;
 }

@@ -72,7 +72,7 @@ again:
 			}
 			// Open 't' for writing as file descriptor 1
 			// (which environments use as standard output).
-                        if((r = open(t, O_CREAT | O_WRONLY)) < 0){
+                        if((r = open(t, O_WRONLY)) < 0){
                                 panic("output: %e",r);
                         }
 			// We can't open a file onto a particular descriptor,
