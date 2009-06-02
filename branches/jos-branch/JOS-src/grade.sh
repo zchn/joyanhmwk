@@ -205,7 +205,7 @@ runtest1 -tag 'pipe race 2 [testpiperace2]' testpiperace2 \
 
 # 10 points - run-primespipe
 pts=10
-timeout=120
+timeout=220
 echo 'The primespipe test has up to 2 minutes to complete.  Be patient.'
 runtest1 -tag 'primespipe' primespipe \
 	! 1 2 3 ! 4 5 ! 6 7 ! 8 ! 9 \
@@ -216,7 +216,7 @@ runtest1 -tag 'primespipe' primespipe \
 
 # 20 points - run-testshell
 pts=20
-timeout=60
+timeout=160
 runtest1 -tag 'shell [testshell]' testshell \
 	'shell ran correctly' \
 
