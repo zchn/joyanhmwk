@@ -111,9 +111,9 @@ again:
 			//	descriptor 0.)
 			//	Then 'goto again', to parse the rest of the
 			//	command line as a new command.
-                                close(p[1]);
                                 dup(p[0],0);
                                 close(p[0]);
+                                close(p[1]);
                                 goto again;
                         }else{
 			// The parent runs the left side of the pipe:
@@ -124,9 +124,9 @@ again:
 			//	Then 'goto runit', to execute this piece of
 			//	the pipeline.
                                 pipe_child = r;
-                                close(p[0]);
                                 dup(p[1],1);
                                 close(p[1]);
+                                close(p[0]);
                                 goto runit;
                         }
 			// LAB 5: Your code here.

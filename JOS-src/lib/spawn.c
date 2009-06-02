@@ -151,6 +151,7 @@ spawn(const char *prog, const char **argv)
                         }
                 }
         }
+
 	//     Note: None of the segment addresses or lengths above
 	//     are guaranteed to be page-aligned, so you must deal with
 	//     these non-page-aligned values appropriately.
@@ -166,11 +167,14 @@ spawn(const char *prog, const char **argv)
                 return r;
         }
 
+        close(fd);
+        
         // By zht
 	uintptr_t va;
 	uint32_t pdex;
 	uint32_t ptex;
 	uint32_t pn;
+
 	for (pdex = PDX(0); pdex < PDX(UTOP); pdex++) {
 		if (vpd[pdex] & PTE_P) {
 			for ( ptex = 0; ptex < NPTENTRIES; ptex++) {
@@ -189,6 +193,8 @@ spawn(const char *prog, const char **argv)
                 sys_env_destroy(child);
                 return r;
         }
+
+
 
 	// LAB 5: Your code here.
 	//panic("spawn unimplemented!");
