@@ -226,11 +226,12 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	if((ret = page_alloc(&p)) < 0){
 		return ret;
 	}
-
+        
 	if((ret = page_insert(e->env_pgdir, p, va, perm)) < 0){
 		page_decref(p);
 		return ret;
-	} 
+	}
+        memset(va,0,PGSIZE);
 	return 0;
 }
 
