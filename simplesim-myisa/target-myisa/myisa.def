@@ -23,7 +23,7 @@ DEFINST(ADD,			0x01,
 
 #define ADDI_IMPL							\
   {									\
-	SET_GPR(RD,GPR(RS)+IMME);					\
+	SET_GPR(RD,GPR(RS)+OFFSET);					\
   }
 DEFINST(ADDI,			0x02,
 	"addi",			"",
@@ -67,6 +67,42 @@ DEFINST(SW,			0x04,
   }
 DEFINST(SWP,			0x05,
 	"swp",			"",
+	NA,			F_TRAP,
+	DNA, DNA, DNA,		DNA, DNA, DNA, DNA)
+
+/* #define SUBI_IMPL							\ */
+/*   {									\ */
+/* 	SET_GPR(RD,GPR(RS)-IMME);					\ */
+/*   } */
+/* DEFINST(SUBI,			0x10, */
+/* 	"subi",			"", */
+/* 	NA,			F_TRAP, */
+/* 	DNA, DNA, DNA,		DNA, DNA, DNA, DNA) */
+
+#define SLT_IMPL							\
+  {									\
+          SET_GPR(RD, GPR(RS)<GPR(RT));                                 \
+  }
+DEFINST(SLT,			0x11,
+	"slt",			"",
+	NA,			F_TRAP,
+	DNA, DNA, DNA,		DNA, DNA, DNA, DNA)
+
+#define BEQ_IMPL							\
+  {									\
+          if(GPR(RS)==GPR(RT)) SET_NPC(CPC+OFFSET+4);                   \
+  }
+DEFINST(BEQ,			0x12,
+	"beq",			"",
+	NA,			F_TRAP,
+	DNA, DNA, DNA,		DNA, DNA, DNA, DNA)
+
+#define BNE_IMPL							\
+  {									\
+          if(GPR(RS)!=GPR(RT)) SET_NPC(CPC+OFFSET+4);                   \
+  }
+DEFINST(BNE,			0x13,
+	"bne",			"",
 	NA,			F_TRAP,
 	DNA, DNA, DNA,		DNA, DNA, DNA, DNA)
 
