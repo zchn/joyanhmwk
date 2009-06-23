@@ -1,0 +1,33 @@
+
+/*
+DEFLINK(ALUREG_LINK, 0x00, "alureg_link", 0, 0x3f)
+*/
+
+#define SWI_IMPL							\
+  {									\
+	SYSCALL(inst);							\
+  }
+DEFINST(SWI,			0x3f,
+	"swi",			"",
+	NA,			F_TRAP,
+	DNA, DNA, DNA,		DNA, DNA, DNA, DNA)
+
+/*
+CONNECT(ALUREG_LINK)
+#define ADD_IMPL							\
+  {									\
+	SET_GPR(RD,GPR(RS)+GPR(RT));					\
+  }
+DEFINST(ADD,			0x20,
+	"add",			"",
+	IntALU,			F_ICOMP,
+	DNA,DNA,DNA,		DNA,DNA,DNA,DNA)
+*/
+
+#undef SWI_IMPL
+/*#undef ADD_IMPL*/
+
+#undef DEFINST
+#undef DEFLINK
+#undef CONNECT
+#undef DEFUOP
