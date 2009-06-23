@@ -17,7 +17,7 @@ DATA SEG
         addi $7 $0 512
         lw $8 0 $7
         
-        #for 	j <- 2 to length[A]
+        #for 	j <- 2 to length[A]  j->$5
         addi $5 $0 2
 FORBEG: 
         slt $1 $8 $5
@@ -28,7 +28,7 @@ FORBEG:
         add $2 $2 $7
         lw $1 0 $2
         #key->$1
-	#i <- j-1
+	#i <- j-1  i->$6
         addi $6 $5 -1
 	#while	i > 0  and  A[i] > key
 WHILEBEG: 
@@ -43,7 +43,7 @@ WHILEBEG:
         beq $2 $0 WHILEEND
 	#do	A[i+1] <- A[i]
         addi $3 $3 4
-        sw $4 0 $3 
+        sw $4 0 $3
 	#i <- i-1
         addi  $6 $6 -1
 	#done
@@ -54,7 +54,7 @@ WHILEEND:
         add $2 $2 $2
         add $2 $2 $2    
         add $2 $2 $7
-        sw $1 0 $7 
+        sw $1 0 $2 
 	#done
         addi $5 $5 1
         beq $0 $0 FORBEG
