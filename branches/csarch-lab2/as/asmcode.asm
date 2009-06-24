@@ -1,17 +1,20 @@
 DATA SEG    
-        6
+        8
         6
         1
-        3
+        13
         4
+        3
+        14
         2
         5
-        DATA END        
+DATA END        
         #A -> $7 (but count from 1, that is , $7[1] is the first elem)
         #len(A) -> $8
 
         addi $1 $0 512
-        addi $2 $0 7
+        lw $2 0 $1
+        addi $2 $2 1
         swi 2
         
         addi $7 $0 512
@@ -62,7 +65,8 @@ END:
         #END of for j <- 2 to lenth[A]
 
         addi $1 $0 512
-        addi $2 $0 7
+        lw $2 0 $1
+        addi $2 $2 1
         swi 2
 
         swi 1
