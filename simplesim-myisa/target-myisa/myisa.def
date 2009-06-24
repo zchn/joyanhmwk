@@ -15,7 +15,6 @@ DEFLINK(ALUREG_LINK, 0x00, "alureg_link", 0, 0x3f)
 #define ADD_IMPL							\
   {									\
 	SET_GPR(RD,GPR(RS)+GPR(RT));					\
-          printf("DEBUG:ADD\n");\
 }
 DEFINST(ADD,			0x01,
 	"add",			"",
@@ -25,7 +24,6 @@ DEFINST(ADD,			0x01,
 #define ADDI_IMPL							\
   {									\
           SET_GPR(RD,GPR(RS)+(int)OFFSET);                              \
-          printf("DEBUG:ADDI %d\n",GPR(RS)+(int)OFFSET);                        \
   }
 DEFINST(ADDI,			0x02,
 	"addi",			"",
@@ -41,7 +39,6 @@ DEFINST(ADDI,			0x02,
 	if(_fault != md_fault_none)					\
 		DECLARE_FAULT(_fault);					\
 	SET_GPR(RD, _result);						\
-          printf("DEBUG:LW\n");\
 }
 DEFINST(LW,			0x03,
 	"lw",			"",
@@ -55,7 +52,6 @@ DEFINST(LW,			0x03,
 	WRITE_WORD(GPR(RD),GPR(RS)+OFFSET,_fault );			\
 	if(_fault != md_fault_none)					\
 		DECLARE_FAULT(_fault);					\
-          printf("DEBUG:SW\n");\        
   }
 DEFINST(SW,			0x04,
 	"sw",			"",
@@ -74,19 +70,9 @@ DEFINST(SWP,			0x05,
 	NA,			F_TRAP,
 	DNA, DNA, DNA,		DNA, DNA, DNA, DNA)
 
-/* #define SUBI_IMPL							\ */
-/*   {									\ */
-/* 	SET_GPR(RD,GPR(RS)-IMME);					\ */
-/*   } */
-/* DEFINST(SUBI,			0x10, */
-/* 	"subi",			"", */
-/* 	NA,			F_TRAP, */
-/* 	DNA, DNA, DNA,		DNA, DNA, DNA, DNA) */
-
 #define SLT_IMPL							\
   {									\
           SET_GPR(RD, GPR(RS)<GPR(RT));                                 \
-          printf("DEBUG:SLT\n");\
   }
 DEFINST(SLT,			0x11,
 	"slt",			"",
@@ -95,7 +81,6 @@ DEFINST(SLT,			0x11,
 
 #define BEQ_IMPL							\
   {									\
-          printf("DEBUG:BEQ to %d?%d\n",CPC+(OFFSET<<2)+4,GPR(RS)==GPR(RD));            \
           if(GPR(RS)==GPR(RD)) SET_NPC(CPC+(OFFSET<<2)+4);              \
   }
 DEFINST(BEQ,			0x12,
@@ -105,7 +90,6 @@ DEFINST(BEQ,			0x12,
 
 #define BNE_IMPL							\
   {									\
-          printf("DEBUG:BNE to %d?%d\n",CPC+(OFFSET<<2)+4,GPR(RS)!=GPR(RD));            \
           if(GPR(RS)!=GPR(RD)) SET_NPC(CPC+(OFFSET<<2)+4);              \
   }
 DEFINST(BNE,			0x13,
@@ -116,7 +100,6 @@ DEFINST(BNE,			0x13,
 #define SWI_IMPL							\
   {									\
 	SYSCALL(inst);							\
-          printf("DEBUG:SWI\n");\
   }
 DEFINST(SWI,			0x3f,
 	"swi",			"",
