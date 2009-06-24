@@ -246,7 +246,49 @@ bne 指令的功能与 MIPS 中定义的类似，即比较 RD 域指示的寄存
 \section{数据通路的设计}
 \label{sec:datapath}
 
-TODO
+本指令系统的数据通路如图\ref{fig:datapath}.本图源自课本，与课本不同的
+地方主要是图中间通向寄存器堆的三条线的定义以及寄存器堆中 Write
+Register 和 Read Register 2 的位置。
+
+\begin{figure}[hbt!]
+  \centering
+  \includegraphics[width=1.2\textwidth]{datapath.png}
+  \caption{数据通路示意图}
+  \label{fig:datapath}
+\end{figure}
+
+各控制信号意义如下：
+\begin{description}
+\item[PCSrc] PC寄存器更新的来源：是只递增还是递增后还要加一个便宜；
+\item[RegDst] 寄存器堆二号数据输出线路上是读的RD的值还是RT的值；
+\item[RegWrite] 控制是否向寄存器堆写入数据；
+\item[ALUSrc] 控制ALU的第二个参数由谁提供；
+\item[ALUOp] 控制ALU是进行什么操作；
+\item[MemWrite] 控制是否写存储器；
+\item[MemRead] 控制是否读存储器；
+\item[MemtoReg] 控制向寄存器写入的数据来自存储器还是ALU
+\end{description}
+
+各个控制信号在不同时期的值见表\ref{tab:dc}。
+
+\begin{table}[hbt!]
+  \centering
+  \begin{tabular}{|l|l|l|l|l|l|l|l|l|}
+    \hline
+    Inst&PCSrc&RegDst&RegW&ALUSrc&ALUOp&MemW&MemR&Mem2Reg\\
+    \hline
+    add&0&1&1&0&+&0&0&0\\
+    addi&0&*&1&1&+&0&0&0\\
+    lw&0&*&1&1&+&0&1&1\\
+    sw&0&0&0&1&+&1&0&*\\
+    slt&0&1&1&0&-&0&0&0\\
+    bne&0/1&0&0&0&-&0&0&*\\
+    beq&0/1&0&0&0&-&0&0&*\\
+    \hline
+  \end{tabular}
+  \caption{Datapath and Control}
+  \label{tab:dc}
+\end{table}
 
 \section{Insert Sort 的实现}
 \label{sec:insertsort}
